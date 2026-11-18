@@ -1,0 +1,44 @@
+# 매수에 이의 있습니다! 설정
+
+provider: claude              # 어느 회사의 AI를 쓸지: claude 또는 gemini
+jurors: 5                     # 배심원 수: 3 또는 5
+max_output_tokens: 8000       # 호출 1번당 최대 출력 토큰 (리스크 검토자, 배심원, 판사). 이의 수 상한이 없어 넉넉히. 실제로 쓴 만큼만 돈이 든다
+prosecutor_max_output_tokens: 24000   # 리스크 검토자는 원문 전체에서 이의를 최대 30개, 쪽·인용과 함께 쓴다. 8000으로는 잘렸다(2026-11-17 실제 리포트 분석)
+extract_max_output_tokens: 24000   # 리포트 입력(추출)은 답이 길어 따로 둔다. 표를 모두 옮기므로 넉넉히 (실제로 쓴 만큼만 돈이 든다)
+
+# 서버가 바쁠 때(503, 504, 429)의 대응
+max_concurrent_calls: 2       # 동시에 부르는 AI 수. 1로 하면 배심원도 한 명씩 차례로 부른다
+retries: 3                    # 일시 오류일 때 다시 부르는 횟수 (모델마다)
+retry_base_sec: 5             # 첫 대기 시간. 5초 → 10초 → 20초로 두 배씩 늘린다
+timeout_sec: 600              # 호출 1번에 기다리는 최대 시간(초). 리스크 검토자가 원문 전체를 읽고 이의를 길게 쓸 수 있어 넉넉히. 구글 서버에도 마감 시간으로 전달된다
+extract_timeout_sec: 900      # 리포트 입력(추출)은 PDF 전체를 읽어 오래 걸리므로 따로 넉넉히
+
+# 회사별 설정. 키는 여기에 적지 않고 .env 파일에 넣는다.
+# 단가(백만 토큰당 달러)는 가정값이거나 비어 있다. 실제 실행 전에 각 회사 가격 페이지에서 확인해 고친다.
+providers:
+  claude:
+    model: claude-sonnet-5-5           # 기본 모델: 추출 담당, 배심원, 판사 (2026-11-18 비용 절감으로 변경. 이전에는 모두 Opus 5.5)
+    key_env: ANTHROPIC_API_KEY
+    output_token_factor: 2             # 생각을 끌 수 없고, 생각한 토큰도 출력 한도에 들어간다
+    effort: high                       # 생각의 깊이: low / medium / high. 높을수록 꼼꼼하지만 비싸다. Sonnet 5.5 의 기본값은 high
+    roles:                             # 역할별로 다르게 쓸 때 (extractor / prosecutor / juror / judge). 적지 않은 역할은 위 기본값
+      prosecutor:                      # 리스크 검토자: 원문 전체에서 문제를 찾는 가장 어려운 일이라 Opus 유지
+        model: claude-opus-5-5
+        effort: medium
+    prices:                            # 백만 토큰당 달러 (2026-11 Anthropic 공시 가격). 캐시 쓰기는 입력의 1.25배로 계산
+      claude-opus-5-5: {input: 4.0, output: 20.0, cache_read: 0.20}
+      claude-sonnet-5-5: {input: 2.0, output: 10.0, cache_read: 0.10}
+  gemini:
+    model: gemini-3.5-flash            # 2026-11-14 점검: 3.8-flash 는 504, 3.7-flash 는 503, 3.5-flash 는 정상 응답
+    fallback_models: [gemini-3.5-flash-lite]  # 위 모델이 계속 실패하면 차례로 바꿔 시도한다 (2.5-flash 는 새 사용자에게 제공 종료)
+    key_env: GEMINI_API_KEY
+    price_per_mtok_input_usd: 0        # 미입력: 0이면 예상 비용을 계산하지 않는다
+    price_per_mtok_output_usd: 0
+    output_token_factor: 2             # 생각하는 데 쓰는 토큰도 출력 한도에 들어가므로 한도를 넉넉히 준다
+
+# 공식 금융 데이터 대조 (AI를 쓰지 않고 코드가 대조한다)
+external:
+  dart: true                  # OpenDART 공시 재무제표와 과거 실적 숫자 대조 (무료). .env 에 DART_API_KEY 가 없으면 건너뛴다
+  krx: true                   # KRX 시장 데이터와 현재주가·시가총액·상장주식수 대조 (무료). .env 에 KRX_API_KEY 가 없으면 건너뛴다
+  ecos: true                  # 한국은행 ECOS 와 환율·금리·물가 대조 (무료). .env 에 ECOS_API_KEY 가 없으면 건너뛴다
+  kosis: true                 # 통계청 KOSIS 와 산업 통계(생산·출하·판매·수출, 물가지수) 대조 (무료). 같은 값을 찾을 때만 일치, 못 찾으면 검증 불가

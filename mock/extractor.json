@@ -1,0 +1,853 @@
+{
+  "meta": {
+    "ticker": "000000",
+    "name": "한빛소재(가상)",
+    "report_date": "2026-03-10",
+    "snapshot_date": "2026-03-10",
+    "opinion": "매수",
+    "demo": true,
+    "title": "새 공장이 여는 고부가 필름의 시대",
+    "current_price": "42,000",
+    "target_price": "63,000",
+    "valuation_method": "PBR Method (2027E BPS × Target PBR 1.8x)",
+    "sector": "제조업",
+    "source_file": "sample_report.pdf (교육·시연용 가상 리포트, 5쪽)"
+  },
+  "claims": [
+    {
+      "claim_id": "C-1",
+      "page": 4,
+      "is_core": false,
+      "text": "신공장의 수율 개선 효과를 보수적으로 절반만 반영하더라도 2027년 영업이익률은 11%를 넘어선다. 원가 절감과 고부가 제품 비중 확대가 동시에 일어나기 때문이다.",
+      "evidence": [
+        {
+          "ref_id": "R-12",
+          "value": "11.0",
+          "unit": "%",
+          "page": 1
+        },
+        {
+          "ref_id": "R-13",
+          "value": "6.5",
+          "unit": "%",
+          "page": 1
+        },
+        {
+          "ref_id": "R-15",
+          "value": "약 40",
+          "unit": "%",
+          "page": 2
+        },
+        {
+          "ref_id": "R-16",
+          "value": "40",
+          "unit": "%",
+          "page": 4
+        },
+        {
+          "ref_id": "R-17",
+          "value": "12.0",
+          "unit": "%",
+          "page": 4
+        },
+        {
+          "ref_id": "R-32",
+          "value": "24.0",
+          "unit": "%",
+          "page": 4
+        },
+        {
+          "ref_id": "R-33",
+          "value": "38.5",
+          "unit": "%",
+          "page": 4
+        }
+      ],
+      "assumptions": [
+        "수율 개선 40%의 절반인 20%만 원가에 반영",
+        "원재료비가 매출액의 60%",
+        "신공장 매출은 2026년 하반기부터 발생"
+      ]
+    },
+    {
+      "claim_id": "C-2",
+      "page": 1,
+      "is_core": true,
+      "text": "목표주가 63,000원은 2027년 예상 BPS에 2018년 평균 PBR 1.8배를 적용해 산출했다. 현재주가 42,000원 대비 상승여력은 50.0%이다.",
+      "evidence": [
+        {
+          "ref_id": "R-01",
+          "value": "42,000",
+          "unit": "원",
+          "page": 1
+        },
+        {
+          "ref_id": "R-02",
+          "value": "63,000",
+          "unit": "원",
+          "page": 5
+        },
+        {
+          "ref_id": "R-03",
+          "value": "50.0",
+          "unit": "%",
+          "page": 5
+        },
+        {
+          "ref_id": "R-04",
+          "value": "1,050",
+          "unit": "십억 원",
+          "page": 5
+        },
+        {
+          "ref_id": "R-05",
+          "value": "30,000,000",
+          "unit": "주",
+          "page": 5
+        },
+        {
+          "ref_id": "R-06",
+          "value": "35,000",
+          "unit": "원",
+          "page": 5
+        },
+        {
+          "ref_id": "R-07",
+          "value": "1.8",
+          "unit": "배",
+          "page": 5
+        },
+        {
+          "ref_id": "R-08",
+          "value": "18.9",
+          "unit": "%",
+          "page": 5
+        },
+        {
+          "ref_id": "R-09",
+          "value": "15",
+          "unit": "십억 원",
+          "page": 5
+        },
+        {
+          "ref_id": "R-29",
+          "value": "1.6",
+          "unit": "배",
+          "page": 5
+        },
+        {
+          "ref_id": "M-1",
+          "value": "63,000",
+          "unit": "원",
+          "page": 5
+        },
+        {
+          "ref_id": "M-2",
+          "value": "50.0",
+          "unit": "%",
+          "page": 5
+        }
+      ],
+      "assumptions": [
+        "Target PBR은 2018년 평균 PBR 1.8배",
+        "2018년은 2027년과 증설 직후·ROE 측면에서 비슷함",
+        "2027E ROE 18.9%"
+      ]
+    },
+    {
+      "claim_id": "C-3",
+      "page": 1,
+      "is_core": false,
+      "text": "전방 수요 회복으로 2027년 실적 성장은 확실하다. 디스플레이·배터리용 특수 필름 시장은 연 15% 성장할 것으로 본다.",
+      "evidence": [
+        {
+          "ref_id": "R-25",
+          "value": "15",
+          "unit": "%",
+          "page": 1
+        },
+        {
+          "ref_id": "R-26",
+          "value": "8~10",
+          "unit": "%",
+          "page": 3
+        }
+      ],
+      "assumptions": [
+        "특수 필름 시장 연 15% 성장"
+      ]
+    },
+    {
+      "claim_id": "C-4",
+      "page": 3,
+      "is_core": false,
+      "text": "차입금이 늘었지만 신공장 가동 후 현금흐름으로 충분히 상환할 수 있다.",
+      "evidence": [
+        {
+          "ref_id": "R-20",
+          "value": "0.6",
+          "unit": "조 원",
+          "page": 3
+        },
+        {
+          "ref_id": "R-21",
+          "value": "145",
+          "unit": "%",
+          "page": 3
+        },
+        {
+          "ref_id": "R-22",
+          "value": "2,000억 원 이상",
+          "unit": "",
+          "page": 3
+        },
+        {
+          "ref_id": "R-23",
+          "value": "0.3",
+          "unit": "조 원",
+          "page": 3
+        },
+        {
+          "ref_id": "R-24",
+          "value": "0.2",
+          "unit": "조 원",
+          "page": 3
+        }
+      ],
+      "assumptions": []
+    },
+    {
+      "claim_id": "C-5",
+      "page": 1,
+      "is_core": false,
+      "text": "신공장 가동 이후 배당성향을 20%까지 높일 계획이다.",
+      "evidence": [
+        {
+          "ref_id": "R-27",
+          "value": "1,320",
+          "unit": "원",
+          "page": 5
+        },
+        {
+          "ref_id": "R-28",
+          "value": "20",
+          "unit": "%",
+          "page": 5
+        },
+        {
+          "ref_id": "R-14",
+          "value": "198",
+          "unit": "십억 원",
+          "page": 1
+        },
+        {
+          "ref_id": "R-05",
+          "value": "30,000,000",
+          "unit": "주",
+          "page": 5
+        }
+      ],
+      "assumptions": [
+        "신공장 가동 이후 이익 증가"
+      ]
+    }
+  ],
+  "risks": [],
+  "unverified": [
+    "리포트에 위험 요인을 다루는 장이 따로 없다.",
+    "모든 숫자는 리포트 본문에서 옮겼으며 공시·외부 자료와 대조하지 않았다.",
+    "교육·시연용 가상 리포트다. 실존 기업과 무관하다."
+  ],
+  "sources": [
+    {
+      "sid": "S1",
+      "title": "한빛소재(가상) 교육·시연용 가상 리포트",
+      "url": "",
+      "date": "2026-03-10"
+    }
+  ],
+  "data_rows": [
+    {
+      "rid": "R-01",
+      "item": "한빛소재(가상) 현재주가",
+      "value": "42,000",
+      "unit": "원",
+      "basis": "",
+      "as_of": "2026-03-10",
+      "source": "리포트 본문",
+      "page": 1,
+      "location": ""
+    },
+    {
+      "rid": "R-02",
+      "item": "목표주가",
+      "value": "63,000",
+      "unit": "원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-03",
+      "item": "상승여력",
+      "value": "50.0",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-04",
+      "item": "2027E 지배지분 기말자본",
+      "value": "1,050",
+      "unit": "십억 원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-05",
+      "item": "유통주식수",
+      "value": "30,000,000",
+      "unit": "주",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-06",
+      "item": "2027E BPS",
+      "value": "35,000",
+      "unit": "원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-07",
+      "item": "Target PBR",
+      "value": "1.8",
+      "unit": "배",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-08",
+      "item": "2027E ROE",
+      "value": "18.9",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-09",
+      "item": "(-) 순차입금 조정",
+      "value": "15",
+      "unit": "십억 원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-10",
+      "item": "2027E 매출액",
+      "value": "2,400",
+      "unit": "십억 원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 1,
+      "location": ""
+    },
+    {
+      "rid": "R-11",
+      "item": "2027E 영업이익",
+      "value": "264",
+      "unit": "십억 원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 1,
+      "location": ""
+    },
+    {
+      "rid": "R-12",
+      "item": "2027E OPM",
+      "value": "11.0",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 1,
+      "location": ""
+    },
+    {
+      "rid": "R-13",
+      "item": "2026E OPM",
+      "value": "6.5",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 1,
+      "location": ""
+    },
+    {
+      "rid": "R-14",
+      "item": "2027E 당기순이익",
+      "value": "198",
+      "unit": "십억 원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 1,
+      "location": ""
+    },
+    {
+      "rid": "R-15",
+      "item": "신공정 도입 시 수율 목표",
+      "value": "약 40",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 2,
+      "location": ""
+    },
+    {
+      "rid": "R-16",
+      "item": "신공장 수율 개선",
+      "value": "40",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 4,
+      "location": ""
+    },
+    {
+      "rid": "R-17",
+      "item": "원가 절감 효과 (매출액 대비)",
+      "value": "12.0",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 4,
+      "location": ""
+    },
+    {
+      "rid": "R-20",
+      "item": "차입금",
+      "value": "0.6",
+      "unit": "조 원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 3,
+      "location": ""
+    },
+    {
+      "rid": "R-21",
+      "item": "부채비율",
+      "value": "145",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 3,
+      "location": ""
+    },
+    {
+      "rid": "R-22",
+      "item": "주요 고객사 선수금",
+      "value": "2,000억 원 이상",
+      "unit": "",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 3,
+      "location": ""
+    },
+    {
+      "rid": "R-23",
+      "item": "올해 남은 투자 집행액",
+      "value": "0.3",
+      "unit": "조 원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 3,
+      "location": ""
+    },
+    {
+      "rid": "R-24",
+      "item": "현금성 자산",
+      "value": "0.2",
+      "unit": "조 원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 3,
+      "location": ""
+    },
+    {
+      "rid": "R-25",
+      "item": "특수 필름 시장 성장률 (리포트 가정)",
+      "value": "15",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 1,
+      "location": ""
+    },
+    {
+      "rid": "R-26",
+      "item": "업계 조사기관 시장 성장률 전망",
+      "value": "8~10",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 3,
+      "location": ""
+    },
+    {
+      "rid": "R-27",
+      "item": "2027E DPS",
+      "value": "1,320",
+      "unit": "원",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-28",
+      "item": "2027E 배당성향",
+      "value": "20",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-29",
+      "item": "2017~2019년 평균 PBR",
+      "value": "1.6",
+      "unit": "배",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 5,
+      "location": ""
+    },
+    {
+      "rid": "R-30",
+      "item": "신공장 가동 시작",
+      "value": "2026년 3분기",
+      "unit": "",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 2,
+      "location": "1. 신공장 개요"
+    },
+    {
+      "rid": "R-31",
+      "item": "신공장 본격 가동",
+      "value": "2026년 4분기",
+      "unit": "",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 4,
+      "location": "4. 실적 추정"
+    },
+    {
+      "rid": "R-32",
+      "item": "고부가 제품 매출 비중 2026E",
+      "value": "24.0",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 4,
+      "location": ""
+    },
+    {
+      "rid": "R-33",
+      "item": "고부가 제품 매출 비중 2027E",
+      "value": "38.5",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 4,
+      "location": ""
+    },
+    {
+      "rid": "R-34",
+      "item": "원가 계산에 반영한 수율 개선",
+      "value": "20",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 4,
+      "location": ""
+    },
+    {
+      "rid": "R-35",
+      "item": "매출액 대비 원재료비",
+      "value": "60",
+      "unit": "%",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 4,
+      "location": ""
+    },
+    {
+      "rid": "R-36",
+      "item": "고부가 제품 매출 비중 상승폭",
+      "value": "14.5",
+      "unit": "%p",
+      "basis": "",
+      "as_of": "",
+      "source": "리포트 본문",
+      "page": 4,
+      "location": ""
+    }
+  ],
+  "metrics": [
+    {
+      "mid": "M-1",
+      "name": "목표주가(리포트 표기)",
+      "formula": "(2027E 기말자본 × Target PBR − 순차입금 조정) ÷ 유통주식수 (5쪽 목표주가 산출표)",
+      "inputs": [
+        "R-04",
+        "R-05",
+        "R-06",
+        "R-07",
+        "R-09"
+      ],
+      "value": "63,000"
+    },
+    {
+      "mid": "M-2",
+      "name": "상승여력(리포트 표기)",
+      "formula": "목표주가 ÷ 현재주가 − 1",
+      "inputs": [
+        "R-02",
+        "R-01"
+      ],
+      "value": "50.0"
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "K-1",
+      "name": "목표주가가 계산표의 숫자로 다시 계산되는가",
+      "kind": "recompute",
+      "expr": "(R-04 * R-07 - R-09) * 1000000000 / R-05",
+      "stated": "R-02",
+      "note": "(기말자본 × Target PBR − 순차입금 조정) ÷ 유통주식수"
+    },
+    {
+      "check_id": "K-2",
+      "name": "상승여력 = 목표주가 ÷ 현재주가 − 1",
+      "kind": "recompute",
+      "expr": "(R-02 / R-01 - 1) * 100",
+      "stated": "R-03"
+    },
+    {
+      "check_id": "K-3",
+      "name": "BPS = 기말자본 ÷ 유통주식수",
+      "kind": "recompute",
+      "expr": "R-04 * 1000000000 / R-05",
+      "stated": "R-06"
+    },
+    {
+      "check_id": "K-4",
+      "name": "2027E OPM = 영업이익 ÷ 매출액",
+      "kind": "recompute",
+      "expr": "R-11 / R-10 * 100",
+      "stated": "R-12"
+    },
+    {
+      "check_id": "K-5",
+      "name": "배당성향 = DPS × 주식수 ÷ 당기순이익",
+      "kind": "recompute",
+      "expr": "R-27 * R-05 / (R-14 * 1000000000) * 100",
+      "stated": "R-28"
+    },
+    {
+      "check_id": "K-6",
+      "name": "원가 절감 12.0% = 반영한 수율 개선 20% × 원재료비 60%",
+      "kind": "recompute",
+      "expr": "R-34 * R-35 / 100",
+      "stated": "R-17"
+    },
+    {
+      "check_id": "K-7",
+      "name": "고부가 제품 매출 비중 상승폭",
+      "kind": "recompute",
+      "expr": "R-33 - R-32",
+      "stated": "R-36"
+    },
+    {
+      "check_id": "K-8",
+      "name": "신공장 가동 시점 표기가 쪽마다 같은가",
+      "kind": "same",
+      "compare": [
+        "R-30",
+        "R-31"
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "text": "투자의견은 매수, 목표주가는 63,000원이다. 2027년 예상 BPS에 2018년 평균 PBR 1.8배를 적용했다.",
+      "pages": [
+        1,
+        5
+      ]
+    },
+    {
+      "text": "핵심 논리는 신공장이다. 수율 개선과 고부가 제품 비중 확대로 2027년 영업이익률이 11.0%로 오른다고 본다.",
+      "pages": [
+        2,
+        4
+      ]
+    },
+    {
+      "text": "특수 필름 시장이 연 15% 성장한다고 본다. 업계 조사기관 전망은 연 8~10%다.",
+      "pages": [
+        1,
+        3
+      ]
+    },
+    {
+      "text": "차입금은 늘었지만 고객사 선수금과 가동 후 현금흐름으로 상환할 수 있다고 본다.",
+      "pages": [
+        3
+      ]
+    },
+    {
+      "text": "신공장 가동 이후 배당성향을 20%까지 높일 계획이다.",
+      "pages": [
+        1,
+        5
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "id": "T-1",
+      "title": "추정 손익계산서",
+      "page": 4,
+      "years": [
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026E",
+        "2027E",
+        "2028E"
+      ],
+      "estimate_from": 4,
+      "highlight": 5,
+      "note": "4쪽의 추정 손익계산서. 2026E부터 리포트의 추정치다.",
+      "rows": [
+        {
+          "name": "매출액",
+          "unit": "십억 원",
+          "kind": "amount",
+          "values": [
+            1650,
+            1720,
+            1580,
+            1690,
+            1860,
+            2400,
+            2610
+          ]
+        },
+        {
+          "name": "영업이익",
+          "unit": "십억 원",
+          "kind": "amount",
+          "values": [
+            132,
+            120,
+            71,
+            85,
+            121,
+            264,
+            287
+          ]
+        },
+        {
+          "name": "영업이익률",
+          "unit": "%",
+          "kind": "rate",
+          "values": [
+            8.0,
+            7.0,
+            4.5,
+            5.0,
+            6.5,
+            11.0,
+            11.0
+          ]
+        },
+        {
+          "name": "ROE",
+          "unit": "%",
+          "kind": "rate",
+          "values": [
+            12.1,
+            10.4,
+            5.2,
+            6.3,
+            8.8,
+            18.9,
+            17.5
+          ]
+        }
+      ]
+    }
+  ],
+  "kpis": [
+    "R-02",
+    "R-03",
+    "R-12",
+    "R-08",
+    "R-28",
+    "R-20"
+  ],
+  "external_data": false
+}

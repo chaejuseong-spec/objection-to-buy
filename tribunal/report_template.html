@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{
+  --ink:#1b1e23; --sub:#5b626c; --line:#dcd8cf; --bg:#f2efe8; --paper:#fffdf9;
+  --fix:#d42a1c; --chk:#d97a00; --keep:#1c66d6; --ok:#1f8a4c;
+  --fix-bg:rgba(212,42,28,.22); --chk-bg:rgba(233,138,12,.26); --keep-bg:rgba(28,102,214,.18);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:64px}
+body{margin:0; background:var(--bg); color:var(--ink); line-height:1.6;
+  font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; font-size:15px}
+a{color:inherit}
+header.bar{position:sticky; top:0; z-index:30; background:var(--ink); color:#fff; display:flex; gap:18px;
+  align-items:center; padding:10px 20px; flex-wrap:wrap}
+header.bar b{font-size:15px; letter-spacing:-.01em}
+header.bar nav{display:flex; gap:14px; font-size:13px; opacity:.9}
+header.bar nav a{text-decoration:none; border-bottom:1px solid transparent}
+header.bar nav a:hover{border-color:#fff}
+.toggle{margin-left:auto; display:flex; border:1px solid rgba(255,255,255,.4); border-radius:999px; overflow:hidden}
+.toggle button{background:none; border:0; color:#fff; font:inherit; font-size:13px; padding:5px 14px; cursor:pointer}
+.toggle button[aria-pressed=true]{background:#fff; color:var(--ink); font-weight:700}
+main{max-width:920px; margin:0 auto; padding:24px 16px 80px}
+.sheet{background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:34px 38px; margin-bottom:28px;
+  box-shadow:0 1px 0 rgba(0,0,0,.03)}
+h1{font-size:15px; font-weight:600; color:var(--sub); margin:0 0 4px}
+h2{font-size:19px; margin:0 0 14px; letter-spacing:-.02em}
+h3{font-size:14px; margin:22px 0 8px; color:var(--sub); font-weight:700; letter-spacing:.02em}
+.mock{background:#fff3cd; border:1px solid #e6c65c; padding:8px 12px; border-radius:4px; font-size:13px; margin-bottom:18px}
+.top{display:flex; gap:26px; align-items:flex-end; border-bottom:2px solid var(--ink); padding-bottom:16px; flex-wrap:wrap}
+.top .name{font-size:30px; font-weight:800; letter-spacing:-.03em; line-height:1.15}
+.top .sub{color:var(--sub); font-size:13px}
+.grade{margin-left:auto; text-align:right}
+.grade small{display:block; color:var(--sub); font-size:12px}
+.grade span{display:inline-block; font-size:28px; font-weight:800; padding:2px 16px; border-radius:4px; color:#fff}
+.g-재심리{background:var(--fix)} .g-조건부{background:var(--chk)} .g-통과{background:var(--ok)}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px}
+.box{border:1px solid var(--line); border-radius:6px; padding:14px 16px; background:#fff}
+.box .lab{font-size:12px; font-weight:700; color:var(--sub)}
+.box .who{float:right; font-size:11px; color:var(--sub); border:1px solid var(--line); border-radius:999px; padding:0 8px}
+.cnt{display:flex; gap:16px; margin-top:8px; flex-wrap:wrap}
+.cnt div{font-size:13px; color:var(--sub)} .cnt b{font-size:24px; color:var(--ink); margin-right:3px; font-variant-numeric:tabular-nums}
+.c-fix b{color:var(--fix)} .c-chk b{color:var(--chk)} .c-keep b{color:var(--keep)} .c-ok b{color:var(--ok)}
+table{border-collapse:collapse; width:100%; font-size:14px}
+th,td{text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top}
+th{font-size:12px; color:var(--sub); font-weight:700}
+.tag{display:inline-block; font-size:12px; font-weight:700; padding:1px 8px; border-radius:3px; color:#fff; white-space:nowrap}
+.t-fix{background:var(--fix)} .t-chk{background:var(--chk)} .t-keep{background:var(--keep)} .t-ok{background:var(--ok)}
+.t-na{background:#8a8f98}
+ol.issues{margin:0; padding-left:20px} ol.issues li{margin:4px 0}
+ul.todo{list-style:none; padding:0; margin:0} ul.todo li{display:flex; gap:8px; padding:5px 0; align-items:flex-start}
+ul.todo input{margin-top:5px} ul.todo small{color:var(--sub)}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:13px; align-items:center}
+.sw{display:inline-block; width:26px; height:13px; vertical-align:-2px; margin-right:5px; border-radius:2px}
+.sw.fix{background:var(--fix-bg); border-bottom:2px solid var(--fix)} .sw.chk{background:var(--chk-bg); border-bottom:2px solid var(--chk)}
+.sw.keep{background:var(--keep-bg); border-bottom:2px solid var(--keep)} .sw.num{border-bottom:3px double var(--fix)}
+.foot{margin-top:18px; padding-top:12px; border-top:1px solid var(--line); font-size:12px; color:var(--sub)}
+.talk-only{display:none} body[data-view=talk] .talk-only{display:block} body[data-view=talk] .me-only{display:none}
+.how{background:#eef3fb; border-left:4px solid var(--keep); padding:10px 14px; margin-top:16px; font-size:14px}
+.how b{white-space:nowrap}
+/* 원문 */
+.page{position:relative; background:#fff; border:1px solid var(--line); margin:0 auto 18px; box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.page img{display:block; width:100%; height:auto}
+.page .ov{position:absolute; inset:0}
+.pno{position:absolute; top:6px; right:-1px; transform:translateX(100%); font-size:11px; color:var(--sub); padding-left:6px}
+.mk{position:absolute; cursor:help; border-radius:2px; outline:0}
+.mk.fix{background:var(--fix-bg); border-bottom:2px solid var(--fix)}
+.mk.chk{background:var(--chk-bg); border-bottom:2px solid var(--chk)}
+.mk.keep{background:var(--keep-bg); border-bottom:2px solid var(--keep)}
+.mk.num{border-bottom:3px double var(--fix); background:rgba(212,42,28,.08)}
+.mk.on, .mk:focus-visible{box-shadow:0 0 0 2px var(--ink)}
+.badge{position:absolute; left:-22px; top:-2px; width:18px; height:18px; border-radius:50%; color:#fff; font-size:11px;
+  font-weight:800; display:flex; align-items:center; justify-content:center; pointer-events:none}
+.badge.fix{background:var(--fix)} .badge.chk{background:var(--chk)} .badge.keep{background:var(--keep)} .badge.num{background:var(--fix); border-radius:3px}
+#legendFloat{display:none}
+body[data-view=talk] #legendFloat{display:block; position:fixed; right:14px; bottom:14px; z-index:25; background:var(--paper);
+  border:1px solid var(--line); border-radius:6px; padding:10px 12px; font-size:12px; box-shadow:0 4px 14px rgba(0,0,0,.12)}
+#legendFloat div{margin:3px 0}
+/* 커서 카드 */
+#card{position:fixed; z-index:40; width:400px; max-width:calc(100vw - 24px); max-height:70vh; overflow:auto; display:none;
+  background:#fff; border:1px solid var(--ink); border-radius:6px; padding:14px 16px; font-size:13px; box-shadow:0 10px 30px rgba(0,0,0,.22)}
+#card .hd{display:flex; gap:8px; align-items:center; font-weight:800; font-size:14px; margin-bottom:6px}
+#card .ob{border-top:1px solid var(--line); padding-top:8px; margin-top:8px}
+#card .meta{color:var(--sub); font-size:12px}
+#card .votes{margin:6px 0 0; padding:0; list-style:none} #card .votes li{padding:1px 0}
+#card .pin{float:right; font-size:11px; color:var(--sub)}
+.v-타당{color:var(--fix); font-weight:700} .v-과장{color:var(--keep); font-weight:700} .v-확인{color:var(--chk); font-weight:700} .v-기권{color:#8a8f98}
+/* 기록 */
+details{border:1px solid var(--line); border-radius:6px; padding:10px 14px; margin:8px 0; background:#fff}
+summary{cursor:pointer; font-weight:700}
+blockquote{margin:8px 0; padding:6px 12px; border-left:3px solid var(--line); color:var(--sub); font-size:14px}
+.form input,.form select{font:inherit; padding:4px 6px; border:1px solid var(--line); border-radius:4px; width:100%}
+button.act{font:inherit; font-size:13px; padding:6px 14px; border:1px solid var(--ink); background:var(--ink); color:#fff; border-radius:4px; cursor:pointer; margin-top:10px}
+@media (max-width:700px){.sheet{padding:22px 18px} .two{grid-template-columns:1fr} .pno{display:none} .badge{left:-8px; top:-14px}}
+@media print{header.bar,#legendFloat,#card,button.act{display:none} body{background:#fff} .sheet{border:0; box-shadow:none; break-after:page} .page{break-inside:avoid}}
+</style>
+</head>
+<body data-view="me">
+<header class="bar">
+  <b>검증 기록지</b>
+  <nav><a href="#summary">요약지</a><a href="#source">표시된 원문</a><a href="#records">기록</a></nav>
+  <div class="toggle" role="group" aria-label="보기 전환">
+    <button id="vMe" aria-pressed="true">내 보기</button><button id="vTalk" aria-pressed="false">발표 보기</button>
+  </div>
+</header>
+<main>
+  <section class="sheet" id="summary"></section>
+  <section id="source">
+    <div class="sheet" style="padding:18px 24px"><h2 style="margin:0">표시된 원문</h2>
+      <div class="foot" style="border:0; margin:4px 0 0; padding:0">색이 칠해진 문장이나 밑줄 친 숫자에 커서를 올리면 평가 기록이 뜹니다. 누르면 고정됩니다.</div></div>
+    __PAGES__
+  </section>
+  <section class="sheet" id="records"></section>
+</main>
+<div id="legendFloat"></div>
+<div id="card" role="dialog" aria-live="polite"></div>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CLS = {'수정':'fix','확인 필요':'chk','판정 보류':'chk','유지':'keep','일치':'ok','불일치':'fix','확인 불가':'na'};
+const SYM = {fix:'✕', chk:'?', keep:'○', num:'≠'};
+const tag = v => `<span class="tag t-${CLS[v]}">${esc(v)}</span>`;
+const LEGEND = `<span><i class="sw fix"></i>✕ 수정</span><span><i class="sw chk"></i>? 확인 필요 · 판정 보류</span>
+  <span><i class="sw keep"></i>○ 유지 (이의는 있었음)</span><span><i class="sw num"></i>≠ 숫자 불일치</span>`;
+const count = (arr, f) => arr.filter(f).length;
+const refs = ids => ids.length ? ids.map(i => D.rows[i] ? `${esc(i)} (${D.rows[i].page}쪽)` : esc(i)).join(', ') : '근거 없음';
+
+/* ---------- 1부 요약지 ---------- */
+(function summary(){
+  const m = D.meta, c = D.claims, n = D.checks;
+  const gcls = D.grade === '재심리' ? '재심리' : D.grade === '통과' ? '통과' : '조건부';
+  const demo = m.demo ? ' · DEMO' : '';
+  $('#summary').innerHTML = `
+    ${D.mock ? '<div class="mock"><b>MOCK 실행</b> · AI를 부르지 않고 미리 써 둔 가짜 답으로 만든 기록지입니다. 이의와 표는 판단 근거로 쓰지 마세요. 숫자 검증은 코드가 실제로 계산한 값입니다.</div>' : ''}
+    <h1>검증 기록지${demo}</h1>
+    <div class="top">
+      <div><div class="name">${esc(m.name)} <span style="font-weight:500; color:var(--sub); font-size:18px">${esc(m.ticker)}</span></div>
+        <div class="sub">${esc(m.title)} · ${esc(m.report_date)} · 리포트 의견 ${esc(m.opinion)}${m.target_price ? ' · 목표주가 ' + esc(m.target_price) + '원' : ''}</div></div>
+      <div class="grade"><small>리포트 평가</small><span class="g-${gcls}">${esc(D.grade)}</span></div>
+    </div>
+    <div class="how talk-only"><b>어떻게 평가하나</b> &nbsp;리스크 검토자 1명이 이의 제기 → 배심원 ${D.n_jurors}명이 따로 투표 → 판사가 정리 → 판정은 코드 규칙이 계산.<br>
+      <b>원칙</b> &nbsp;AI는 숫자를 만들지 않습니다. 숫자는 코드가 다시 계산하고, 매수·보유·매도는 사람이 정합니다.</div>
+    <div class="two">
+      <div class="box"><span class="who">코드가 계산</span><div class="lab">숫자 검증 · ${n.length}건</div>
+        <div class="cnt"><div class="c-ok"><b>${count(n,x=>x.result==='일치')}</b>일치</div>
+          <div class="c-fix"><b>${count(n,x=>x.result==='불일치')}</b>불일치</div>
+          <div><b>${count(n,x=>x.result==='확인 불가')}</b>확인 불가</div></div></div>
+      <div class="box"><span class="who">AI 반대신문</span><div class="lab">논리 평가 · 주장 ${c.length}개</div>
+        <div class="cnt"><div class="c-fix"><b>${count(c,x=>x.verdict==='수정')}</b>수정</div>
+          <div class="c-chk"><b>${count(c,x=>x.verdict==='확인 필요'||x.verdict==='판정 보류')}</b>확인 필요</div>
+          <div class="c-keep"><b>${count(c,x=>x.verdict==='유지')}</b>유지</div></div></div>
+    </div>
+    <h3>주장별 판정</h3>
+    <table><tr><th>주장</th><th>내용</th><th>쪽</th><th>판정</th></tr>
+      ${c.map(x => `<tr><td><a href="#p${x.page}">${esc(x.id)}</a>${x.core ? ' <b title="투자의견 핵심">★</b>' : ''}</td>
+        <td>${esc(x.text.length > 62 ? x.text.slice(0, 62) + '…' : x.text)}</td><td>${x.page ?? ''}</td><td>${tag(x.verdict)}</td></tr>`).join('')}
+    </table>
+    <div class="foot" style="border:0; margin-top:4px; padding:0">★ 투자의견 핵심 주장</div>
+    <h3>핵심 쟁점</h3>
+    <ol class="issues">
+      ${n.filter(x=>x.result==='불일치').map(x => `<li>${tag('불일치')} <a href="#p${x.marks?.[0]?.page ?? 1}">${esc(x.name)}</a> — 표기 ${esc(x.stated)}, 다시 계산 ${esc(x.recomputed)}</li>`).join('')}
+      ${D.issues.map(i => { const cl = c.find(x => x.objections.some(o => o.id === i.objection_id));
+        return `<li><a href="#p${cl?.page ?? 1}">${esc(i.objection_id)}</a> ${esc(i.title)}</li>`; }).join('')}
+    </ol>
+    <h3>직접 확인할 것</h3>
+    <ul class="todo">${D.checklist.length ? D.checklist.map((t, i) => `<li><input type="checkbox" id="td${i}" data-k="todo${i}">
+      <label for="td${i}">(${esc(t.type)}) ${esc(t.what)} <small>· ${esc(t.why)} · ${esc(t.claim_id)}</small></label></li>`).join('') : '<li>없음</li>'}</ul>
+    <h3>색 범례</h3><div class="legend">${LEGEND}</div>
+    <div class="foot">스냅샷 날짜 ${esc(m.snapshot_date)} · 배심원 ${D.n_jurors}명(과반 ${D.majority}표) ·
+      ${D.external ? '외부 대조 자료 사용' : '외부 대조 자료 없음: 리포트 안의 숫자와 논리만 따졌습니다'} ·
+      이 기록지는 평가 초안이며 투자 권유가 아닙니다.</div>`;
+  $('#legendFloat').innerHTML = LEGEND.replace(/<span>/g, '<div>').replace(/<\/span>/g, '</div>');
+})();
+
+/* ---------- 2부 표시된 원문 ---------- */
+D.marks.forEach(mk => {
+  const ov = $(`#p${mk.page} .ov`); if (!ov) return;
+  mk.rects.forEach((r, i) => {
+    const d = document.createElement('div');
+    d.className = `mk ${mk.cls}`; d.tabIndex = 0; d.dataset.kind = mk.kind; d.dataset.id = mk.id;
+    d.setAttribute('role', 'button'); d.setAttribute('aria-label', `${mk.id} 평가 기록 보기`);
+    d.style.cssText = `left:${r[0]}%;top:${r[1]}%;width:${r[2]}%;height:${r[3]}%`;
+    if (i === 0) d.innerHTML = `<span class="badge ${mk.cls}">${SYM[mk.cls]}</span>`;
+    ov.appendChild(d);
+  });
+});
+
+/* ---------- 커서 카드 ---------- */
+const card = $('#card'); let pinned = null;
+const voteCls = v => 'v-' + (v === '확인 불가' ? '확인' : v);
+function claimCard(id){
+  const c = D.claims.find(x => x.id === id);
+  return `<div class="hd">${esc(c.id)}${c.core ? ' ★' : ''} ${tag(c.verdict)}<span class="meta" style="font-weight:400">${c.page}쪽</span></div>
+    ${c.ruling ? `<div><b>판사</b> ${esc(c.ruling.reason)} <span class="meta">투자의견 영향 ${esc(c.ruling.impact)}${c.ruling.fix_part ? ' · 검토할 부분 ' + esc(c.ruling.fix_part) : ''}</span></div>` : ''}
+    ${c.objections.map(o => `<div class="ob"><div><b>${esc(o.id)}</b> ${tag(o.verdict)} <span class="meta">${esc(o.by)} · ${esc(o.type)} · ${esc(o.kind)}</span></div>
+      <div>${esc(o.text)}</div><div class="meta">반대 근거: ${refs(o.ids)}${o.removed.length ? ' · 입력에 없어 지운 id: ' + esc(o.removed.join(', ')) : ''}</div>
+      ${o.votes.length ? `<div class="meta">타당 ${o.tally['타당']} · 과장 ${o.tally['과장']} · 확인 불가 ${o.tally['확인 불가']} · 기권 ${o.tally['기권']}</div>
+        <ul class="votes">${o.votes.map(v => `<li><span class="${voteCls(v.vote)}">${esc(v.vote)}</span> ${esc(v.who)}${v.reason ? ' — ' + esc(v.reason) : ''}</li>`).join('')}</ul>`
+        : '<div class="meta">배심원이 추가한 이의라 표가 없습니다.</div>'}</div>`).join('')}`;
+}
+function numCard(id){
+  const n = D.checks.find(x => x.check_id === id);
+  return `<div class="hd">${esc(n.check_id)} ${tag(n.result)} <span class="meta" style="font-weight:400">숫자 검증 · 코드가 계산</span></div>
+    <div><b>${esc(n.name)}</b></div><div>리포트 표기: ${esc(n.stated)}</div><div>다시 계산: ${esc(n.recomputed)}</div>
+    <div class="meta">식: ${esc(n.formula)}</div><div class="meta">쓴 숫자: ${refs(n.inputs || [])}</div>${n.note ? `<div class="ob">${esc(n.note)}</div>` : ''}`;
+}
+function show(el, pin){
+  card.innerHTML = `<span class="pin">${pin ? '고정됨 · Esc로 닫기' : '누르면 고정'}</span>` + (el.dataset.kind === 'num' ? numCard(el.dataset.id) : claimCard(el.dataset.id));
+  card.style.display = 'block';
+  const r = el.getBoundingClientRect(), cw = card.offsetWidth, ch = card.offsetHeight;
+  let x = Math.min(Math.max(12, r.left), innerWidth - cw - 12);
+  let y = r.bottom + 8; if (y + ch > innerHeight - 8) y = Math.max(8, r.top - ch - 8);
+  card.style.left = x + 'px'; card.style.top = y + 'px';
+  document.querySelectorAll('.mk.on').forEach(e => e.classList.remove('on'));
+  document.querySelectorAll(`.mk[data-id="${el.dataset.id}"]`).forEach(e => e.classList.add('on'));
+}
+function hide(){ card.style.display = 'none'; pinned = null; document.querySelectorAll('.mk.on').forEach(e => e.classList.remove('on')); }
+document.addEventListener('mouseover', e => { const m = e.target.closest('.mk'); if (m && !pinned) show(m, false); });
+document.addEventListener('mouseout', e => { if (e.target.closest('.mk') && !pinned) hide(); });
+document.addEventListener('focusin', e => { const m = e.target.closest('.mk'); if (m && !pinned) show(m, false); });
+document.addEventListener('click', e => { const m = e.target.closest('.mk');
+  if (m) { pinned = m; show(m, true); } else if (!e.target.closest('#card')) hide(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hide();
+  if ((e.key === 'Enter' || e.key === ' ') && document.activeElement.classList.contains('mk')) { e.preventDefault(); pinned = document.activeElement; show(pinned, true); } });
+addEventListener('scroll', () => { if (!pinned && card.style.display === 'block') hide(); }, {passive:true});
+
+/* ---------- 3부 기록 ---------- */
+(function records(){
+  const form = D.share ? '' : `<div class="me-only"><h3>판결 기록 (사람이 적는다)</h3>
+    <table class="form"><tr><th>시점</th><th style="width:130px">의견</th><th style="width:110px">확신도 0~100</th><th>이유</th></tr>
+    ${['AI 보기 전','리포트 본 뒤','검증 본 뒤'].map((t, i) => `<tr><td>${t}</td>
+      <td><select data-k="op${i}" aria-label="${t} 의견"><option value=""></option><option>매수</option><option>보유</option><option>매도</option></select></td>
+      <td><input type="number" min="0" max="100" data-k="cf${i}" aria-label="${t} 확신도"></td><td><input data-k="why${i}" aria-label="${t} 이유"></td></tr>`).join('')}
+    </table><button class="act" id="csv">CSV로 내보내기</button>
+    <div class="foot" style="border:0">적은 내용은 이 브라우저에만 저장됩니다. 남에게 줄 때는 공유용 사본을 쓰세요.</div></div>`;
+  $('#records').innerHTML = `<h2>기록</h2>${form}
+    <h3>숫자 검증 (코드가 계산)</h3>
+    <table><tr><th>id</th><th>확인한 것</th><th>리포트 표기</th><th>다시 계산</th><th>결과</th></tr>
+    ${D.checks.map(n => `<tr><td>${esc(n.check_id)}</td><td>${esc(n.name)}<div class="foot" style="border:0; margin:0; padding:0">${esc(n.formula)}</div></td>
+      <td>${esc(n.stated)}</td><td>${esc(n.recomputed)}</td><td>${tag(n.result)}</td></tr>`).join('')}</table>
+    <h3>주장별 전체 기록</h3>
+    ${D.claims.map((c, i) => `<details ${i < 2 ? 'class="talk-open"' : ''}><summary>${esc(c.id)}${c.core ? ' ★' : ''} ${tag(c.verdict)} <span style="font-weight:400; color:var(--sub)">${c.page}쪽 · 이의 ${c.objections.length}건 · 원문 일치 ${Math.round(c.found * 100)}%</span></summary>
+      <blockquote>${esc(c.text)}</blockquote>${c.objections.length ? claimCard(c.id) : '<div>리스크 검토자: 이의 없음</div>'}</details>`).join('')}`;
+})();
+
+/* ---------- 보기 전환 · 저장 ---------- */
+function setView(v){ document.body.dataset.view = v; $('#vMe').setAttribute('aria-pressed', v === 'me'); $('#vTalk').setAttribute('aria-pressed', v === 'talk');
+  document.querySelectorAll('details.talk-open').forEach(d => d.open = v === 'talk'); }
+$('#vMe').onclick = () => setView('me'); $('#vTalk').onclick = () => setView('talk');
+const KEY = 'tribunal:' + D.meta.ticker + ':' + D.meta.report_date + ':';
+const store = { get(k){ try { return localStorage.getItem(KEY + k); } catch(e) { return null; } },
+                set(k, v){ try { localStorage.setItem(KEY + k, v); } catch(e) {} } };
+document.querySelectorAll('[data-k]').forEach(el => {
+  const v = store.get(el.dataset.k);
+  if (v !== null) { if (el.type === 'checkbox') el.checked = v === '1'; else el.value = v; }
+  el.addEventListener('change', () => store.set(el.dataset.k, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value));
+});
+const csvBtn = $('#csv');
+if (csvBtn) csvBtn.onclick = () => {
+  const q = s => '"' + String(s ?? '').replace(/"/g, '""') + '"', val = k => $(`[data-k="${k}"]`).value;
+  const rows = [['종목','리포트 날짜','시점','의견','확신도','이유','기록 시각']].concat(
+    ['AI 보기 전','리포트 본 뒤','검증 본 뒤'].map((t, i) => [D.meta.name, D.meta.report_date, t, val('op'+i), val('cf'+i), val('why'+i), new Date().toISOString()]));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + rows.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'}));
+  a.download = 'verdict_form.csv'; a.click();
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+{
+  "objections": [
+    {
+      "objection_id": "O-1",
+      "claim_id": "C-1",
+      "doubt_type": "논리 연결",
+      "kind": "사실 오류",
+      "already_in_report": false,
+      "text": "2쪽은 '수율 약 40% 달성'을 목표로 적었는데 4쪽은 '수율 40% 개선'으로 바꿔 원가 절감 계산에 썼다. 도달할 수율과 개선 폭은 뜻이 다르다.",
+      "counter_ids": [
+        "R-15",
+        "R-16",
+        "R-17"
+      ],
+      "page": 2,
+      "quote": "수율 약 40% 달성을 목표로 한다고 밝혔다"
+    },
+    {
+      "objection_id": "O-2",
+      "claim_id": "C-2",
+      "doubt_type": "숫자의 기준",
+      "kind": "해석 차이",
+      "already_in_report": false,
+      "text": "2018년 평균 PBR을 2027년 추정 BPS에 곱했다. 과거 한 해의 배수를 미래 추정 자본에 적용한 이유가 충분한지 따져야 한다. 2017~2019년 평균은 1.6배다.",
+      "counter_ids": [
+        "R-06",
+        "R-07",
+        "R-29"
+      ]
+    },
+    {
+      "objection_id": "O-3",
+      "claim_id": "C-2",
+      "doubt_type": "숫자의 기준",
+      "kind": "사실 오류",
+      "already_in_report": false,
+      "text": "목표주가 산출표의 기말자본, 배수, 순차입금 조정, 주식 수로 목표주가가 그대로 다시 계산되는지 확인이 필요하다.",
+      "counter_ids": [
+        "R-04",
+        "R-05",
+        "R-07",
+        "R-09",
+        "R-999"
+      ]
+    },
+    {
+      "objection_id": "O-4",
+      "claim_id": "C-3",
+      "doubt_type": "빠진 위험",
+      "kind": "해석 차이",
+      "already_in_report": false,
+      "text": "전방 수요가 기대보다 약한 경우를 다루지 않았다. 리포트가 가정한 시장 성장률 15%는 같은 쪽에 인용된 업계 전망 8~10%보다 높다.",
+      "counter_ids": [],
+      "page": 1,
+      "quote": "2027년 실적 성장은 확실하다"
+    },
+    {
+      "objection_id": "O-5",
+      "claim_id": "C-4",
+      "doubt_type": "가정의 근거",
+      "kind": "해석 차이",
+      "already_in_report": true,
+      "text": "고객사 선수금은 제품으로 갚아야 할 부채이지 상환 재원이 아니다. '충분히 상환할 수 있다'의 근거가 약하다.",
+      "counter_ids": [
+        "R-20",
+        "R-21",
+        "R-22"
+      ]
+    },
+    {
+      "objection_id": "O-6",
+      "claim_id": null,
+      "page": 3,
+      "quote": "경쟁사 증설 계획은 사실상 철회됐다",
+      "doubt_type": "가정의 근거",
+      "kind": "해석 차이",
+      "already_in_report": false,
+      "text": "경쟁사 증설 철회를 근거 자료 없이 단정했다. 철회가 확인되지 않았다면 공급 과잉 위험을 낙관한 것이다.",
+      "counter_ids": []
+    }
+  ]
+}

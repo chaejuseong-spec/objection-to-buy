@@ -1,0 +1,9 @@
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+
+/* 화면 스타일은 components/workspace/workspace.module.css 에 있다. 여기는 바탕만 둔다. */
+html,
+body {
+  margin: 0;
+  background: #ffffff;
+  color: #1a1d21;
+}

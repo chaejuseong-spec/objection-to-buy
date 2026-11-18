@@ -1,0 +1,48 @@
+{
+  "key_issues": [
+    {
+      "objection_id": "O-1",
+      "title": "(mock) 수율 목표와 수율 개선 폭의 혼용"
+    },
+    {
+      "objection_id": "O-2",
+      "title": "(mock) 과거 배수를 미래 추정치에 적용"
+    },
+    {
+      "objection_id": "O-3",
+      "title": "(mock) 목표주가 계산의 재현"
+    }
+  ],
+  "claim_rulings": [
+    {
+      "claim_id": "C-1",
+      "reason": "(mock) 배심원 과반이 타당으로 보았고 반대 근거가 리포트 안에 있다.",
+      "impact": "크다",
+      "fix_part": "기업·재무"
+    },
+    {
+      "claim_id": "C-2",
+      "reason": "(mock) 핵심 주장에 대한 이의 두 건이 과반 타당이다.",
+      "impact": "크다",
+      "fix_part": "밸류에이션"
+    },
+    {
+      "claim_id": "C-3",
+      "reason": "(mock) 타당이 과반이지만 반대 근거가 없다.",
+      "impact": "작다",
+      "fix_part": "산업"
+    },
+    {
+      "claim_id": "C-4",
+      "reason": "(mock) 과반이 과장으로 보았다.",
+      "impact": "작다",
+      "fix_part": null
+    },
+    {
+      "claim_id": "C-5",
+      "reason": "(mock) 이의가 없다.",
+      "impact": "작다",
+      "fix_part": null
+    }
+  ]
+}

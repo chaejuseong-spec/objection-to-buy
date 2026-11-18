@@ -1,0 +1,29 @@
+.env
+.tribunal/
+__pycache__/
+.pytest_cache/
+*.pyc
+library/
+
+# 도구가 만드는 파일 (작업 내용 아님)
+.impeccable/
+skills-lock.json
+*.log
+
+# 남이 쓴 리포트의 원문과 분석 결과 (저장소에 올리지 않음, 각자 컴퓨터에만)
+# 저장소의 데모는 교육·시연용 가상 리포트(demo/sample_report.*)만 쓴다
+dashboard/public/report.pdf
+dashboard/data/result.json
+demo/soil_report.json
+
+# 내부 작업 문서 (이 컴퓨터에만 둔다. 공개용 문서는 README.md, docs/CHANGELOG.md)
+docs/PROJECT_PLAN.md
+docs/AGENT_ARCHITECTURE.md
+docs/SYSTEM_ARCHITECTURE.md
+docs/FEATURE_INVENTORY.md
+
+# 채점 정답지와 점수 (리포트 내용이 들어감)
+eval/
+
+# 공식 데이터 API 응답 저장 (다시 부르지 않으려고)
+.cache/

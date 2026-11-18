@@ -1,0 +1,2053 @@
+{
+ "run": {
+  "id": "",
+  "mock": true,
+  "demo": true
+ },
+ "meta": {
+  "ticker": "",
+  "name": "",
+  "report_date": "",
+  "snapshot_date": "",
+  "opinion": "",
+  "demo": true,
+  "title": "",
+  "current_price": "",
+  "target_price": "",
+  "valuation_method": "",
+  "source_file": ""
+ },
+ "grade": {
+  "value": "",
+  "why": ""
+ },
+ "logic": {
+  "n_jurors": 0,
+  "majority": 0,
+  "n_claims": 0,
+  "count": {
+   "수정": 0,
+   "확인 필요": 0,
+   "유지": 0
+  }
+ },
+ "numbers": {
+  "count": {
+   "일치": 0,
+   "불일치": 0,
+   "확인 불가": 0
+  },
+  "n_checks": 0,
+  "n_numbers": 0,
+  "n_unchecked": 0,
+  "scope": "",
+  "results": [
+   {
+    "check_id": "",
+    "name": "",
+    "kind": "",
+    "expr": "",
+    "stated_rid": "",
+    "note": "",
+    "status": "",
+    "computed": 0,
+    "stated": "",
+    "diff_pct": 0,
+    "pages": [
+     0
+    ],
+    "reason": "",
+    "rids": [
+     ""
+    ]
+   },
+   {
+    "check_id": "",
+    "name": "",
+    "kind": "",
+    "expr": "",
+    "stated_rid": "",
+    "note": "",
+    "status": "",
+    "computed": 0,
+    "stated": "",
+    "diff_pct": 0,
+    "pages": [
+     0
+    ],
+    "reason": "",
+    "rids": [
+     ""
+    ]
+   },
+   {
+    "check_id": "",
+    "name": "",
+    "kind": "",
+    "expr": "",
+    "stated_rid": "",
+    "note": "",
+    "status": "",
+    "computed": 0,
+    "stated": "",
+    "diff_pct": 0,
+    "pages": [
+     0
+    ],
+    "reason": "",
+    "rids": [
+     ""
+    ]
+   },
+   {
+    "check_id": "",
+    "name": "",
+    "kind": "",
+    "expr": "",
+    "stated_rid": "",
+    "note": "",
+    "status": "",
+    "computed": 0,
+    "stated": "",
+    "diff_pct": 0,
+    "pages": [
+     0
+    ],
+    "reason": "",
+    "rids": [
+     ""
+    ]
+   },
+   {
+    "check_id": "",
+    "name": "",
+    "kind": "",
+    "expr": "",
+    "stated_rid": "",
+    "note": "",
+    "status": "",
+    "computed": 0,
+    "stated": "",
+    "diff_pct": 0,
+    "pages": [
+     0
+    ],
+    "reason": "",
+    "rids": [
+     ""
+    ]
+   },
+   {
+    "check_id": "",
+    "name": "",
+    "kind": "",
+    "expr": "",
+    "stated_rid": "",
+    "note": "",
+    "status": "",
+    "computed": 0,
+    "stated": "",
+    "diff_pct": 0,
+    "pages": [
+     0
+    ],
+    "reason": "",
+    "rids": [
+     ""
+    ]
+   },
+   {
+    "check_id": "",
+    "name": "",
+    "kind": "",
+    "expr": "",
+    "stated_rid": "",
+    "note": "",
+    "status": "",
+    "computed": 0,
+    "stated": "",
+    "diff_pct": 0,
+    "pages": [
+     0
+    ],
+    "reason": "",
+    "rids": [
+     ""
+    ]
+   },
+   {
+    "check_id": "",
+    "name": "",
+    "kind": "",
+    "expr": "",
+    "stated_rid": "",
+    "note": "",
+    "status": "",
+    "computed": null,
+    "stated": "",
+    "diff_pct": null,
+    "pages": [
+     0,
+     0
+    ],
+    "reason": "",
+    "rids": [
+     "",
+     ""
+    ]
+   }
+  ]
+ },
+ "external_data": false,
+ "summary": [
+  {
+   "text": "",
+   "pages": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "",
+   "pages": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "",
+   "pages": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "",
+   "pages": [
+    0
+   ]
+  },
+  {
+   "text": "",
+   "pages": [
+    0
+   ]
+  }
+ ],
+ "tables": [
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "years": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+   ],
+   "estimate_from": 0,
+   "highlight": 0,
+   "note": "",
+   "rows": [
+    {
+     "name": "",
+     "unit": "",
+     "kind": "",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "",
+     "unit": "",
+     "kind": "",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "",
+     "unit": "",
+     "kind": "",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "",
+     "unit": "",
+     "kind": "",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "years": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+   ],
+   "estimate_from": 0,
+   "highlight": 0,
+   "note": "",
+   "rows": [
+    {
+     "name": "",
+     "unit": "",
+     "kind": "",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "",
+     "unit": "",
+     "kind": "",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "",
+     "unit": "",
+     "kind": "",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ],
+ "kpis": [
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "page": 0,
+   "basis": "",
+   "check": {
+    "id": "",
+    "status": "",
+    "computed": 0,
+    "diff_pct": 0
+   }
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "page": 0,
+   "basis": "",
+   "check": {
+    "id": "",
+    "status": "",
+    "computed": 0,
+    "diff_pct": 0
+   }
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "page": 0,
+   "basis": "",
+   "check": {
+    "id": "",
+    "status": "",
+    "computed": 0,
+    "diff_pct": 0
+   }
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "page": 0,
+   "basis": "",
+   "check": null
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "page": 0,
+   "basis": "",
+   "check": {
+    "id": "",
+    "status": "",
+    "computed": 0,
+    "diff_pct": 0
+   }
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "page": 0,
+   "basis": "",
+   "check": null
+  }
+ ],
+ "claims": [
+  {
+   "id": "",
+   "text": "",
+   "is_core": false,
+   "page": 0,
+   "verdict": "",
+   "objections": [
+    {
+     "id": "",
+     "who": "",
+     "doubt_type": "",
+     "kind": "",
+     "text": "",
+     "verdict": "",
+     "tally": {
+      "타당": 0,
+      "과장": 0,
+      "확인 불가": 0,
+      "기권": 0
+     },
+     "votes": [
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      }
+     ],
+     "evidence": [
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      },
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      },
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      }
+     ],
+     "removed_ids": [],
+     "already_in_report": false
+    }
+   ],
+   "ruling": {
+    "reason": "",
+    "impact": "",
+    "fix_part": ""
+   }
+  },
+  {
+   "id": "",
+   "text": "",
+   "is_core": true,
+   "page": 0,
+   "verdict": "",
+   "objections": [
+    {
+     "id": "",
+     "who": "",
+     "doubt_type": "",
+     "kind": "",
+     "text": "",
+     "verdict": "",
+     "tally": {
+      "타당": 0,
+      "과장": 0,
+      "확인 불가": 0,
+      "기권": 0
+     },
+     "votes": [
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      }
+     ],
+     "evidence": [
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      },
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      }
+     ],
+     "removed_ids": [],
+     "already_in_report": false
+    },
+    {
+     "id": "",
+     "who": "",
+     "doubt_type": "",
+     "kind": "",
+     "text": "",
+     "verdict": "",
+     "tally": {
+      "타당": 0,
+      "과장": 0,
+      "확인 불가": 0,
+      "기권": 0
+     },
+     "votes": [
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      }
+     ],
+     "evidence": [
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      },
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      },
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      },
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      }
+     ],
+     "removed_ids": [
+      ""
+     ],
+     "already_in_report": false
+    },
+    {
+     "id": "",
+     "who": "",
+     "doubt_type": "",
+     "kind": "",
+     "text": "",
+     "verdict": "",
+     "tally": {
+      "타당": 0,
+      "과장": 0,
+      "확인 불가": 0,
+      "기권": 0
+     },
+     "votes": [],
+     "evidence": [
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      }
+     ],
+     "removed_ids": [],
+     "already_in_report": false
+    }
+   ],
+   "ruling": {
+    "reason": "",
+    "impact": "",
+    "fix_part": ""
+   }
+  },
+  {
+   "id": "",
+   "text": "",
+   "is_core": false,
+   "page": 0,
+   "verdict": "",
+   "objections": [
+    {
+     "id": "",
+     "who": "",
+     "doubt_type": "",
+     "kind": "",
+     "text": "",
+     "verdict": "",
+     "tally": {
+      "타당": 0,
+      "과장": 0,
+      "확인 불가": 0,
+      "기권": 0
+     },
+     "votes": [
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      }
+     ],
+     "evidence": [],
+     "removed_ids": [],
+     "already_in_report": false
+    }
+   ],
+   "ruling": {
+    "reason": "",
+    "impact": "",
+    "fix_part": ""
+   }
+  },
+  {
+   "id": "",
+   "text": "",
+   "is_core": false,
+   "page": 0,
+   "verdict": "",
+   "objections": [
+    {
+     "id": "",
+     "who": "",
+     "doubt_type": "",
+     "kind": "",
+     "text": "",
+     "verdict": "",
+     "tally": {
+      "타당": 0,
+      "과장": 0,
+      "확인 불가": 0,
+      "기권": 0
+     },
+     "votes": [
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      },
+      {
+       "juror": "",
+       "vote": "",
+       "reason": "",
+       "view": ""
+      }
+     ],
+     "evidence": [
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      },
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      },
+      {
+       "id": "",
+       "label": "",
+       "page": 0
+      }
+     ],
+     "removed_ids": [],
+     "already_in_report": true
+    }
+   ],
+   "ruling": {
+    "reason": "",
+    "impact": "",
+    "fix_part": null
+   }
+  },
+  {
+   "id": "",
+   "text": "",
+   "is_core": false,
+   "page": 0,
+   "verdict": "",
+   "objections": [],
+   "ruling": {
+    "reason": "",
+    "impact": "",
+    "fix_part": null
+   }
+  }
+ ],
+ "key_issues": [
+  {
+   "id": "",
+   "title": "",
+   "kind": "",
+   "claim_id": ""
+  },
+  {
+   "id": "",
+   "title": "",
+   "kind": "",
+   "claim_id": ""
+  },
+  {
+   "id": "",
+   "title": "",
+   "kind": "",
+   "claim_id": ""
+  },
+  {
+   "id": "",
+   "title": "",
+   "kind": "",
+   "claim_id": null,
+   "pages": [
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "kind": "",
+   "claim_id": null,
+   "pages": [
+    0,
+    0
+   ]
+  }
+ ],
+ "checklist": [
+  {
+   "what": "",
+   "why": "",
+   "claim_id": "",
+   "type": "",
+   "sources": [
+    ""
+   ],
+   "verdict": ""
+  },
+  {
+   "what": "",
+   "why": "",
+   "claim_id": "",
+   "type": "",
+   "sources": [
+    ""
+   ],
+   "verdict": ""
+  },
+  {
+   "what": "",
+   "why": "",
+   "claim_id": "",
+   "type": "",
+   "sources": [],
+   "verdict": ""
+  },
+  {
+   "what": "",
+   "why": "",
+   "claim_id": "",
+   "type": "",
+   "sources": [
+    ""
+   ],
+   "verdict": ""
+  }
+ ],
+ "rows": [
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  },
+  {
+   "rid": "",
+   "item": "",
+   "value": "",
+   "unit": "",
+   "basis": "",
+   "as_of": "",
+   "source": "",
+   "page": 0,
+   "location": ""
+  }
+ ],
+ "marks": [
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "ref": "",
+   "kind": "",
+   "hue": "",
+   "page": 0,
+   "rects": [
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ ],
+ "extraction": {
+  "pages": 0,
+  "claims": 0,
+  "data_rows": 0,
+  "checks": 0,
+  "tables": 0,
+  "dropped_total": 0,
+  "dropped": {
+   "claims": 0,
+   "claim_sentences": 0,
+   "data_rows": 0,
+   "table_rows": 0,
+   "checks": 0,
+   "summary_pages": 0
+  }
+ },
+ "figures": [
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "",
+   "title": "",
+   "page": 0,
+   "source": "",
+   "rect": [
+    0,
+    0,
+    0,
+    0
+   ]
+  }
+ ],
+ "document": {
+  "has_pdf": true,
+  "pages": 0,
+  "not_found": []
+ }
+}
