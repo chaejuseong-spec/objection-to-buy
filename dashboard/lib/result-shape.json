@@ -19,7 +19,8 @@
  },
  "grade": {
   "value": "",
-  "why": ""
+  "why": "",
+  "holds": 0
  },
  "logic": {
   "n_jurors": 0,
@@ -464,41 +465,52 @@
      "text": "",
      "verdict": "",
      "tally": {
-      "타당": 0,
-      "과장": 0,
-      "확인 불가": 0,
-      "기권": 0
+      "동의": 0,
+      "비동의": 0,
+      "판단 불가": 0,
+      "기권": 0,
+      "중요도": {
+       "상": 0,
+       "중": 0,
+       "하": 0,
+       "미확인": 0
+      }
      },
      "votes": [
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       }
      ],
      "evidence": [
@@ -519,7 +531,10 @@
       }
      ],
      "removed_ids": [],
-     "already_in_report": false
+     "already_in_report": false,
+     "verdict_reason": "",
+     "importance": "",
+     "importance_split": false
     }
    ],
    "ruling": {
@@ -543,41 +558,52 @@
      "text": "",
      "verdict": "",
      "tally": {
-      "타당": 0,
-      "과장": 0,
-      "확인 불가": 0,
-      "기권": 0
+      "동의": 0,
+      "비동의": 0,
+      "판단 불가": 0,
+      "기권": 0,
+      "중요도": {
+       "상": 0,
+       "중": 0,
+       "하": 0,
+       "미확인": 0
+      }
      },
      "votes": [
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       }
      ],
      "evidence": [
@@ -593,7 +619,10 @@
       }
      ],
      "removed_ids": [],
-     "already_in_report": false
+     "already_in_report": false,
+     "verdict_reason": "",
+     "importance": "",
+     "importance_split": false
     },
     {
      "id": "",
@@ -603,41 +632,52 @@
      "text": "",
      "verdict": "",
      "tally": {
-      "타당": 0,
-      "과장": 0,
-      "확인 불가": 0,
-      "기권": 0
+      "동의": 0,
+      "비동의": 0,
+      "판단 불가": 0,
+      "기권": 0,
+      "중요도": {
+       "상": 0,
+       "중": 0,
+       "하": 0,
+       "미확인": 0
+      }
      },
      "votes": [
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       }
      ],
      "evidence": [
@@ -665,7 +705,10 @@
      "removed_ids": [
       ""
      ],
-     "already_in_report": false
+     "already_in_report": false,
+     "verdict_reason": "",
+     "importance": "",
+     "importance_split": false
     },
     {
      "id": "",
@@ -675,10 +718,16 @@
      "text": "",
      "verdict": "",
      "tally": {
-      "타당": 0,
-      "과장": 0,
-      "확인 불가": 0,
-      "기권": 0
+      "동의": 0,
+      "비동의": 0,
+      "판단 불가": 0,
+      "기권": 0,
+      "중요도": {
+       "상": 0,
+       "중": 0,
+       "하": 0,
+       "미확인": 0
+      }
      },
      "votes": [],
      "evidence": [
@@ -689,7 +738,10 @@
       }
      ],
      "removed_ids": [],
-     "already_in_report": false
+     "already_in_report": false,
+     "verdict_reason": "",
+     "importance": "",
+     "importance_split": false
     }
    ],
    "ruling": {
@@ -713,46 +765,60 @@
      "text": "",
      "verdict": "",
      "tally": {
-      "타당": 0,
-      "과장": 0,
-      "확인 불가": 0,
-      "기권": 0
+      "동의": 0,
+      "비동의": 0,
+      "판단 불가": 0,
+      "기권": 0,
+      "중요도": {
+       "상": 0,
+       "중": 0,
+       "하": 0,
+       "미확인": 0
+      }
      },
      "votes": [
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       }
      ],
      "evidence": [],
      "removed_ids": [],
-     "already_in_report": false
+     "already_in_report": false,
+     "verdict_reason": "",
+     "importance": "",
+     "importance_split": false
     }
    ],
    "ruling": {
@@ -776,41 +842,52 @@
      "text": "",
      "verdict": "",
      "tally": {
-      "타당": 0,
-      "과장": 0,
-      "확인 불가": 0,
-      "기권": 0
+      "동의": 0,
+      "비동의": 0,
+      "판단 불가": 0,
+      "기권": 0,
+      "중요도": {
+       "상": 0,
+       "중": 0,
+       "하": 0,
+       "미확인": 0
+      }
      },
      "votes": [
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       },
       {
        "juror": "",
        "vote": "",
        "reason": "",
-       "view": ""
+       "view": "",
+       "importance": ""
       }
      ],
      "evidence": [
@@ -831,7 +908,10 @@
       }
      ],
      "removed_ids": [],
-     "already_in_report": true
+     "already_in_report": true,
+     "verdict_reason": "",
+     "importance": "",
+     "importance_split": false
     }
    ],
    "ruling": {

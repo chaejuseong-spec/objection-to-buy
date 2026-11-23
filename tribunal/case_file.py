@@ -1,4 +1,4 @@
-"""사건 파일 만들기. 각 AI는 대화를 모르므로 필요한 것을 모두 담아 넘긴다.
+"""검토 자료 만들기. 각 AI는 대화를 모르므로 필요한 것을 모두 담아 넘긴다.
 중립적으로: 사람의 매수 이유나 첫 판단은 넣지 않는다."""
 from __future__ import annotations
 from .schemas import Report

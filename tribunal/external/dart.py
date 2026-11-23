@@ -4,6 +4,8 @@
 - corpCode.xml        회사 고유번호 목록 (종목코드 -> corp_code)
 - fnlttSinglAcntAll   단일회사 전체 재무제표 (연결 CFS / 별도 OFS)
 - list.json           공시 검색 (보고서 이름, 접수일. 정정 전 원본이 언제 나왔는지 확인)
+- fnlttXbrl.xml       재무제표 원본 파일(XBRL). 주석 숫자까지 태그가 붙어 있다 (보험사 CSM)
+- document.xml        공시 원문. 사업의 내용에만 있는 숫자 (보험사 지급여력비율)
 
 응답은 .cache/dart/ 에 저장해 같은 것을 다시 부르지 않는다 (조회 시점도 같이 저장).
 """
@@ -12,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -44,6 +47,23 @@ NO_DATA = "013"
 
 class DartError(RuntimeError):
     """키나 한도처럼 대조 전체를 멈춰야 하는 문제. 메시지에 키를 넣지 않는다."""
+
+
+def save_atomic(f, text: str) -> None:
+    """저장 파일을 한 번에 바꾼다 (2026-11-23): 같은 회사를 동시에 받을 때 반쯤 쓴 파일을 읽지 않도록 임시 파일에 쓰고 바꿔치기"""
+    import os
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f"{f.name}.{os.getpid()}.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, f)
+
+
+def load_json(f):
+    """저장 파일 읽기. 없거나 깨졌으면 None (다시 받는다)"""
+    try:
+        return json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def original_url(rcept_no: str) -> str:
@@ -85,8 +105,8 @@ class Dart:
     def get(self, endpoint: str, params: dict) -> dict:
         """JSON API 호출. 돌려주는 값: {'status', 'list', 'fetched_at', ...}. 데이터 없음(013)은 오류가 아니다."""
         f = self._cache_file(endpoint, params)
-        if f.exists():
-            saved = json.loads(f.read_text(encoding="utf-8"))
+        saved = load_json(f) if f.exists() else None
+        if saved is not None:
             if self.offline or datetime.now() - datetime.fromisoformat(saved["fetched_at"]) < TTL:
                 return saved
         body = json.loads(self._raw(endpoint, params).decode("utf-8"))
@@ -95,7 +115,7 @@ class Dart:
             raise DartError(STATUS.get(status, f"DART 오류 코드 {status}"))
         saved = {**body, "fetched_at": datetime.now().isoformat(timespec="seconds"), "endpoint": endpoint, "params": params}
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(json.dumps(saved, ensure_ascii=False), encoding="utf-8")
+        save_atomic(f, json.dumps(saved, ensure_ascii=False))
         return saved
 
     # ---------- 회사 ----------
@@ -117,10 +137,31 @@ class Dart:
             root = ET.fromstring(z.read(z.namelist()[0]))
         rows = [{"corp_code": e.findtext("corp_code", "").strip(), "corp_name": e.findtext("corp_name", "").strip(),
                  "stock_code": e.findtext("stock_code", "").strip()} for e in root.iter("list")]
-        rows = [r for r in rows if r["stock_code"]]   # 상장사만
+        now = datetime.now().isoformat(timespec="seconds")
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(json.dumps({"fetched_at": datetime.now().isoformat(timespec="seconds"), "list": rows}, ensure_ascii=False), encoding="utf-8")
+        save_atomic(self.cache / "corpcode-all.json", json.dumps({"fetched_at": now, "list": rows}, ensure_ascii=False))
+        rows = [r for r in rows if r["stock_code"]]   # 상장사만
+        save_atomic(f, json.dumps({"fetched_at": now, "list": rows}, ensure_ascii=False))
         return rows
+
+    def all_corps(self) -> List[dict]:
+        """비상장사까지 전체 회사 목록 (2026-11-23, 동종사 비교용). 상장사 목록과 같은 파일에서 하루에 한 번"""
+        f = self.cache / "corpcode-all.json"
+        if f.exists():
+            saved = json.loads(f.read_text(encoding="utf-8"))
+            if self.offline or datetime.now() - datetime.fromisoformat(saved["fetched_at"]) < timedelta(days=1):
+                return saved["list"]
+        (self.cache / "corpcode.json").unlink(missing_ok=True)   # 다시 받게 한다
+        self.corps()
+        return json.loads(f.read_text(encoding="utf-8"))["list"]
+
+    def corp_by_code(self, corp_code: str) -> Optional[dict]:
+        return next((c for c in self.all_corps() if c["corp_code"] == corp_code), None)
+
+    def unlisted_by_name(self, name: str) -> List[dict]:
+        """이름이 같은 회사(띄어쓰기 무시). 비상장 포함"""
+        n = name.replace(" ", "")
+        return [c for c in self.all_corps() if c["corp_name"].replace(" ", "") == n]
 
     def corp_by_stock(self, stock_code: str) -> Optional[dict]:
         code = (stock_code or "").strip().zfill(6)
@@ -154,3 +195,91 @@ class Dart:
                                      "pblntf_detail_ty": "A001", "page_count": "100"})
         items = [x for x in res.get("list", []) if f"({year}." in x.get("report_nm", "")]
         return sorted(items, key=lambda x: x.get("rcept_dt", ""))
+
+    # ---------- 공시 원본 파일 (2026-11-21: 보험사 CSM·K-ICS) ----------
+    def _zip(self, endpoint: str, params: dict, tag: str) -> bytes:
+        """zip 으로 오는 원본 파일. .cache/dart/<tag>.zip 에 그대로 둔다 (공시 원본은 접수번호마다 바뀌지 않는다)."""
+        f = self.cache / f"{tag}.zip"
+        if f.exists():
+            return f.read_bytes()
+        raw = self._raw(endpoint, params)
+        if raw[:2] != b"PK":
+            try:
+                status = json.loads(raw.decode("utf-8")).get("status", "")
+            except ValueError:
+                status = (ET.fromstring(raw).findtext("status") or "") if raw.strip().startswith(b"<") else ""
+            if status == NO_DATA:
+                return b""
+            raise DartError(STATUS.get(status, "DART 원본 파일을 받지 못했습니다."))
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(raw)
+        return raw
+
+    def xbrl_facts(self, rcept_no: str, reprt_code: str) -> dict:
+        """정기보고서의 재무제표 원본(XBRL) 안의 숫자 전부. 주석(CSM 등)까지 이름표(태그)가 붙어 있다.
+        돌려주는 값: {'facts': [{'name', 'dims': {축: 값}, 'instant' | 'start'+'end', 'value', 'decimals'}], 'fetched_at'}.
+        없으면 facts 가 빈 목록이다."""
+        f = self.cache / f"xbrl-{rcept_no}.json"
+        saved = load_json(f) if f.exists() else None
+        if saved is not None:
+            return saved
+        raw = self._zip("fnlttXbrl.xml", {"rcept_no": rcept_no, "reprt_code": reprt_code}, f"xbrl-{rcept_no}")
+        facts: List[dict] = []
+        labels: Dict[str, str] = {}
+        if raw:
+            with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                name = next((n for n in z.namelist() if n.endswith(".xbrl")), None)
+                if name:
+                    facts = parse_xbrl(z.read(name).decode("utf-8", "ignore"))
+                lab = next((n for n in z.namelist() if n.endswith("_lab-ko.xml")), None)
+                if lab:                                  # 한국어 이름표 (dart_pool 이 숫자에 이름을 붙일 때 쓴다)
+                    from .dart_pool import parse_labels
+                    labels = parse_labels(z.read(lab).decode("utf-8", "ignore"))
+        out = {"facts": facts, "labels": labels, "fetched_at": datetime.now().isoformat(timespec="seconds"), "rcept_no": rcept_no}
+        f.parent.mkdir(parents=True, exist_ok=True)
+        save_atomic(f, json.dumps(out, ensure_ascii=False))
+        return out
+
+    def document_text(self, rcept_no: str) -> str:
+        """공시 원문(본문 XML). 사업의 내용에만 있는 숫자(지급여력비율 등)를 읽을 때 쓴다. 없으면 빈 글."""
+        raw = self._zip("document.xml", {"rcept_no": rcept_no}, f"doc-{rcept_no}")
+        if not raw:
+            return ""
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            main = sorted(z.namelist(), key=len)[0]          # 본문은 '접수번호.xml', 첨부는 '접수번호_00760.xml'
+            return z.read(main).decode("utf-8", "ignore")
+
+
+_CTX = re.compile(r"<xbrli:context id=\"([^\"]+)\">(.*?)</xbrli:context>", re.S)
+_FACT = re.compile(r"<([A-Za-z\-]+):([A-Za-z0-9_]+) contextRef=\"([^\"]+)\"([^>]*)>([^<]*)</")
+
+
+def parse_xbrl(text: str) -> List[dict]:
+    """XBRL 인스턴스 글 -> 숫자 목록. 축과 값은 접두어를 뺀 이름(예: ConsolidatedAndSeparateFinancialStatementsAxis: SeparateMember)."""
+    ctx: Dict[str, dict] = {}
+    for m in _CTX.finditer(text):
+        body = m.group(2)
+        c: dict = {"dims": {d.split(":")[-1]: v.split(":")[-1] for d, v in re.findall(r'dimension="([^"]+)">\s*([^<\s]+)\s*<', body)}}
+        inst = re.search(r"<xbrli:instant>([^<]+)<", body)
+        if inst:
+            c["instant"] = inst.group(1).strip()
+        else:
+            s, e = re.search(r"<xbrli:startDate>([^<]+)<", body), re.search(r"<xbrli:endDate>([^<]+)<", body)
+            if s and e:
+                c["start"], c["end"] = s.group(1).strip(), e.group(1).strip()
+        ctx[m.group(1)] = c
+    out = []
+    for m in _FACT.finditer(text):
+        prefix, name, cref, attrs, value = m.groups()
+        if prefix in ("xbrli", "link", "xlink") or "unitRef" not in attrs:
+            continue                                       # 숫자만 (글 주석은 뺀다)
+        try:
+            v = float(value.strip().replace(",", ""))
+        except ValueError:
+            continue
+        c = ctx.get(cref)
+        if not c:
+            continue
+        dec = re.search(r'decimals="([^"]+)"', attrs)
+        out.append({"name": name, **c, "value": v, "decimals": dec.group(1) if dec else ""})
+    return out

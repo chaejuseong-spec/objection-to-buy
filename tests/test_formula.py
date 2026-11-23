@@ -106,3 +106,20 @@ def test_상장주식수와_유통주식수는_다른_항목이라_쪽마다_다
     res = fc.run(report(rows, name="가상생명"), [])
     assert not [r for r in res if "쪽마다" in r["name"]]
     assert fc.tag(DataRow(**rows[1]), "가상생명")["metric"] == "shares_float"
+
+
+def test_반올림해_적은_값은_쪽마다_다름으로_보지_않는다():
+    """실제 리포트 분석 사례: 1쪽 목표주가 287,000원, 25쪽 계산표 287,108원 (반올림)."""
+    rows = [row("R-1", "가상생명 목표주가", "287,000", "원", page=1),
+            row("R-2", "가상생명 목표주가", "287,108", "원", page=25)]
+    assert not [r for r in fc.run(report(rows, name="가상생명"), []) if "쪽마다" in r["name"]]
+
+
+@pytest.mark.parametrize("a,b,same", [
+    (287000, 287108, True), (287000, 286600, True),     # 1,000원 단위 반올림·버림
+    (287000, 288200, False),                            # 단위보다 큰 차이
+    (300000, 287108, False),                            # 단위 안이지만 1%를 넘음
+    (287100, 287108, True), (287108, 287109, False),    # 끝자리 0이 없으면 반올림으로 보지 않는다
+])
+def test_반올림_판별(a, b, same):
+    assert fc._rounded_same(a, b) is same

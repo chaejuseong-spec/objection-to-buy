@@ -108,28 +108,96 @@ def _extract_json(text: str) -> dict:
     return json.loads(text[start:end + 1])
 
 
-def claude_content(user: str, doc: Optional[str] = None) -> list:
-    """Claude 에 보낼 사용자 메시지. 원문(doc)이 있으면 맨 앞에 두고 캐시 표시를 붙인다.
-    리스크 검토자·배심원이 같은 원문을 받으므로, 두 번째 호출부터 원문 부분은 캐시에서 싸게 읽힌다.
-    캐시는 앞부분이 글자까지 같아야 맞으므로 원문 뒤에 역할별 지시를 둔다."""
+# ---------- 답 양식 강제 (Claude structured outputs, 2026-11-21) ----------
+# 양식(JSON Schema)을 주면 Claude 가 그 양식에 맞는 JSON 만 쓴다. 따옴표·괄호가 깨져 답을 버리는 일을 막는다.
+# API 가 받지 않는 제약(숫자·글자 수 범위, 기본값 등)은 빼고 보낸다. 빼도 받은 답은 pydantic 으로 다시 검사한다.
+_DROP = {"default", "title", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
+         "minLength", "maxLength", "pattern", "minItems", "maxItems", "uniqueItems", "format"}
+_NO_FORMAT: set = set()                 # API 가 양식을 받지 않은 schema 이름 (이번 실행 동안 다시 시도하지 않는다)
+
+
+def api_schema(model: Type[BaseModel]) -> Optional[dict]:
+    """pydantic 모델 -> Claude 가 받는 JSON Schema. 자유 형식 칸(dict)이 있어 강제할 수 없으면 None."""
+    js = model.model_json_schema()
+    ok = True
+
+    def walk(n):
+        nonlocal ok
+        if isinstance(n, list):
+            return [walk(x) for x in n]
+        if not isinstance(n, dict):
+            return n
+        if n.get("additionalProperties") not in (None, False):
+            ok = False
+        out = {}
+        for k, v in n.items():
+            if k in ("properties", "$defs"):       # 이 안의 이름은 칸 이름이다 ('title' 칸 등). 지우지 않는다
+                out[k] = {name: walk(x) for name, x in v.items()}
+            elif k not in _DROP:
+                out[k] = walk(v)
+        if out.get("type") == "object" or "properties" in out:
+            out["additionalProperties"] = False
+            # 모든 칸을 '꼭 쓰기'로 한다 (없으면 null 이나 빈 목록으로). 선택 칸으로 두면 양식 강제에서 AI가 그 칸을
+            # 통째로 건너뛴다 (2026-11-21: 배심원 15명이 모두 놓친 이의(extra_objection)를 빼고, 한 명은 중요도를 비웠다)
+            if "properties" in out:
+                out["required"] = list(out["properties"])
+        return out
+
+    out = walk(js)
+    return out if ok else None
+
+
+def cache_reused(cfg: dict, role: str) -> bool:
+    """이 역할이 원문에 붙인 캐시를 뒤의 호출이 다시 읽는가 (2026-11-21).
+    캐시는 같은 모델끼리만 읽는다. 저장할 때 입력 단가의 1.25배를 내므로, 아무도 다시 읽지 않으면 그만큼 손해다.
+    배심원 다섯 명은 같은 모델로 같은 원문·검토 자료를 읽는다. 리스크 검토자는 배심원과 모델이 같을 때만 의미가 있다."""
+    g = role_group(role)
+    if g == "prosecutor":
+        return settings(cfg, "prosecutor")["model"] == settings(cfg, "juror_accountant")["model"]
+    return True
+
+
+def claude_content(user: str, doc=None, cache: bool = True) -> list:
+    """Claude 에 보낼 사용자 메시지. doc(원문, 또는 [원문, 검토 자료])을 맨 앞에 두고 조각마다 캐시 표시를 붙인다.
+    배심원 다섯 명은 원문과 검토 자료(이의 목록 포함)가 글자까지 같으므로, 두 번째 배심원부터 그 부분을 캐시에서
+    싸게 읽는다. 캐시는 앞부분이 같아야 맞으므로 역할별 지시는 맨 뒤에 둔다."""
     if not doc:
         return [{"type": "text", "text": user}]
-    return [{"type": "text", "text": doc, "cache_control": {"type": "ephemeral"}},
-            {"type": "text", "text": user}]
+    parts = [doc] if isinstance(doc, str) else list(doc)
+    mark = {"cache_control": {"type": "ephemeral"}} if cache else {}
+    return [{"type": "text", "text": t, **mark} for t in parts] + [{"type": "text", "text": user}]
 
 
-def _call_claude(system: str, user: str, st: dict, max_tokens: int, timeout: int, doc: Optional[str] = None) -> str:
+def _call_claude(system: str, user: str, st: dict, max_tokens: int, timeout: int, doc=None) -> str:
     """한 번만 부른다. 다시 시도는 _real_call 이 한다.
     답이 길 수 있어 스트리밍으로 받는다(긴 요청이 중간에 끊기지 않게). 생각(thinking) 블록은 버리고 글만 쓴다.
     안전 거절(refusal)이면 서버가 다른 모델로 이어 답하게 한다(fallbacks: default)."""
     import anthropic
     client = anthropic.Anthropic(api_key=get_key(st["key_env"]), timeout=timeout, max_retries=0)
-    extra = {"output_config": {"effort": st["effort"]}} if st.get("effort") else {}
-    with client.beta.messages.stream(model=st["model"], max_tokens=max_tokens, system=system,
-                                     messages=[{"role": "user", "content": claude_content(user, doc)}],
-                                     betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-                                     **extra) as stream:
-        msg = stream.get_final_message()
+    oc: dict = {"effort": st["effort"]} if st.get("effort") else {}
+    fmt, fmt_name = st.get("fmt"), st.get("fmt_name") or ""
+    if fmt and fmt_name not in _NO_FORMAT:
+        oc["format"] = {"type": "json_schema", "schema": fmt}      # 이 양식의 JSON 만 쓰게 한다
+
+    # Haiku 는 안전 거절 때 다른 모델로 이어 답하는 서버 기능(fallbacks)이 없다 (2026-11-21 확인). 그 모델에는 보내지 않는다
+    fallback = {} if st["model"].startswith("claude-haiku") else {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
+
+    def send(output_config: dict):
+        extra = {"output_config": output_config} if output_config else {}
+        with client.beta.messages.stream(model=st["model"], max_tokens=max_tokens, system=system,
+                                         messages=[{"role": "user", "content": claude_content(user, doc, st.get("cache", True))}],
+                                         **fallback, **extra) as stream:
+            return stream.get_final_message()
+
+    try:
+        msg = send(oc)
+    except anthropic.BadRequestError as e:
+        if "format" not in oc:
+            raise
+        # 양식 자체를 받지 않으면(지원하지 않는 모양 등) 양식 없이 한 번 더 부른다. 답은 예전처럼 코드가 검사한다
+        _log(f"[{st['model']}] 답 양식 강제를 쓸 수 없어 양식 없이 다시 부릅니다 ({_code(e) or type(e).__name__})")
+        _NO_FORMAT.add(fmt_name)
+        msg = send({k: v for k, v in oc.items() if k != "format"})
     u = msg.usage
     cache = f", 캐시 읽기 {u.cache_read_input_tokens or 0:,} / 캐시 쓰기 {u.cache_creation_input_tokens or 0:,}" if doc else ""
     _log(f"[{msg.model}] 토큰 사용: 입력 {u.input_tokens:,} / 출력 {u.output_tokens:,} (생각 포함){cache}")
@@ -141,7 +209,7 @@ def _call_claude(system: str, user: str, st: dict, max_tokens: int, timeout: int
     return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
 
 
-def _call_gemini(system: str, user: str, st: dict, max_tokens: int, timeout: int, doc: Optional[str] = None) -> str:
+def _call_gemini(system: str, user: str, st: dict, max_tokens: int, timeout: int, doc=None) -> str:
     """한 번만 부른다. 다시 시도는 _real_call 이 한다.
     timeout 은 구글 서버에도 마감 시간으로 전달된다. 넘기면 서버가 504 DEADLINE_EXCEEDED 를 돌려준다."""
     from google import genai
@@ -150,6 +218,8 @@ def _call_gemini(system: str, user: str, st: dict, max_tokens: int, timeout: int
                           http_options=types.HttpOptions(timeout=timeout * 1000))
     config = types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens,
                                          response_mime_type="application/json")
+    if doc and not isinstance(doc, str):        # [원문, 검토 자료]
+        doc = "\n\n".join(doc)
     res = client.models.generate_content(model=st["model"], contents=(doc + "\n\n" + user) if doc else user, config=config)
     return res.text or ""
 
@@ -226,8 +296,9 @@ def _friendly(provider: str, model: str, e: Exception, tried: str = "") -> Runti
     return RuntimeError(f"API 호출 실패({provider}, {model}{tried}): {detail}{hint}")
 
 
-def _real_call(system: str, user: str, cfg: dict, role: str = "", doc: Optional[str] = None) -> str:
+def _real_call(system: str, user: str, cfg: dict, role: str = "", doc=None, schema: Optional[Type[BaseModel]] = None) -> str:
     """회사가 달라도 여기 한 곳을 거친다. 나머지 코드는 어느 회사인지 모른다.
+    schema 를 주면 Claude 에는 답 양식을 강제한다 (config 의 structured_output: false 로 끌 수 있다).
     일시 오류(429, 5xx, 시간 초과)는 기다리는 시간을 두 배씩 늘리며 최대 retries 번 다시 부르고,
     그래도 안 되면 fallback_models 의 다음 모델로 바꿔 같은 일을 한다."""
     st = settings(cfg, role)
@@ -239,6 +310,11 @@ def _real_call(system: str, user: str, cfg: dict, role: str = "", doc: Optional[
     retries = max(0, int(cfg.get("retries", 3)))
     base = float(cfg.get("retry_base_sec", 5))
     models = [st["model"]] + [m for m in st["fallbacks"] if m != st["model"]]
+    if schema is not None and st["provider"] == "claude" and cfg.get("structured_output", True):
+        fmt = api_schema(schema)
+        if fmt:
+            st = dict(st, fmt=fmt, fmt_name=schema.__name__)
+    st = dict(st, cache=cache_reused(cfg, role))     # 다시 읽을 호출이 없으면 캐시에 저장하지 않는다
     who = f"[{role}] " if role else ""
     last: Optional[Exception] = None
     for i, model in enumerate(models):
@@ -271,28 +347,31 @@ def _real_call(system: str, user: str, cfg: dict, role: str = "", doc: Optional[
 def call(role: str, payload: dict, schema: Type[BaseModel], cfg: dict, mock: bool,
          mock_dir: Optional[Path] = None, document: Optional[str] = None, extra: str = "") -> Optional[BaseModel]:
     """role: prosecutor / juror_<key> / judge. 실패하면 None.
-    document(리포트 원문)를 주면 공통 규칙 -> 원문 -> 역할 지시서 -> 사건 파일 순서로 보낸다.
-    앞의 두 부분이 모든 역할에서 같아서 Claude 캐시가 맞는다."""
+    document(리포트 원문)를 주면 공통 규칙 -> 원문 -> 검토 자료 -> 역할 지시서 순서로 보낸다.
+    원문까지는 모든 역할이, 검토 자료까지는 배심원 다섯 명이 같아서 Claude 캐시가 맞는다(같은 모델끼리)."""
     if mock:
         path = (mock_dir or ROOT / "mock") / f"{role}.json"
         try:
             return schema.model_validate_json(path.read_text(encoding="utf-8"))
         except (OSError, ValidationError, ValueError):
             return None
-    case = ("아래 JSON이 사건 파일이다. 지시문의 '넘길 것' 형식에 맞는 JSON 하나만 답하라.\n\n"
-            + json.dumps(payload, ensure_ascii=False, indent=1))
+    data = json.dumps(payload, ensure_ascii=False, indent=1)
+    case = "아래 JSON이 검토 자료다. 지시문의 '넘길 것' 형식에 맞는 JSON 하나만 답하라.\n\n" + data
     if document:
         system = load_common()
-        user = load_role(role, extra) + "\n\n" + case
+        document = [document, "# 검토 자료 (JSON)\n\n" + data]
+        user = load_role(role, extra) + "\n\n위 검토 자료를 바탕으로, 지시문의 '넘길 것' 형식에 맞는 JSON 하나만 답하라."
     else:
         system, user = load_prompt(role, extra), case
     text = ""
     for attempt in range(2):  # 처음 1번 + 재시도 1번
-        text = _real_call(system, user, cfg, role, doc=document)
+        text = _real_call(system, user, cfg, role, doc=document, schema=schema)
         try:
             data = _normalize(_extract_json(text))
-        except (ValueError, json.JSONDecodeError):
-            _log(f"[{role}] 답이 JSON이 아닙니다 ({attempt + 1}/2)")
+        except (ValueError, json.JSONDecodeError) as e:
+            _log(f"[{role}] 답이 JSON이 아닙니다 ({attempt + 1}/2): {type(e).__name__} {getattr(e, 'msg', '')} "
+                 f"(글자 {len(text):,}개 중 {getattr(e, 'pos', '?')}번째)")
+            FAILED_RAW[f"{role}.try{attempt + 1}"] = text      # 다시 불러 성공해도 원인을 볼 수 있게 남긴다 (runner 가 파일로 저장)
             continue
         try:
             return schema.model_validate(data)
@@ -309,13 +388,16 @@ def call(role: str, payload: dict, schema: Type[BaseModel], cfg: dict, mock: boo
 FAILED_RAW: dict = {}
 
 # AI가 띄어쓰기나 어미를 바꿔 쓴 값을 정해진 값으로 되돌린다. 뜻이 다른 말은 바꾸지 않는다.
-_CANON = ["숫자의 기준", "기간 선택", "가정의 근거", "논리 연결", "빠진 위험", "근거의 독립성",
-          "사실 오류", "해석 차이", "타당", "과장", "확인 불가",
+_CANON = ["숫자의 기준", "기간 선택", "가정의 근거", "논리 연결", "위험 누락", "근거의 독립성",
+          "사실 오류", "해석 차이", "동의", "비동의", "판단 불가",
           "산업", "기업·재무", "밸류에이션", "센터장", "크다", "작다"]
 _ALIAS = {c.replace(" ", ""): c for c in _CANON}
-_ALIAS.update({"타당함": "타당", "타당하다": "타당", "과장됨": "과장", "과장이다": "과장",
-               "확인불가능": "확인 불가", "판단불가": "확인 불가", "기업재무": "기업·재무", "기업/재무": "기업·재무"})
+_ALIAS.update({"동의함": "동의", "동의한다": "동의", "부동의": "비동의", "동의하지않음": "비동의", "동의하지않는다": "비동의",
+               "판단불가능": "판단 불가", "확인불가": "판단 불가", "확인불가능": "판단 불가",
+               "타당": "동의", "빠진위험": "위험 누락", "위험누락됨": "위험 누락",          # 예전 이름으로 답해도 받아 준다 ('과장'은 Vote 에서 동의+중요도 하로 바꾼다)
+               "기업재무": "기업·재무", "기업/재무": "기업·재무"})
 _ENUM_KEYS = {"doubt_type", "kind", "vote", "fix_part", "impact"}
+_IMPORTANCE = {"상": "상", "중": "중", "하": "하", "높음": "상", "보통": "중", "낮음": "하", "high": "상", "medium": "중", "low": "하"}
 
 
 def _normalize(v, key: str = ""):
@@ -325,6 +407,8 @@ def _normalize(v, key: str = ""):
         return [_normalize(x, key) for x in v]
     if key in _ENUM_KEYS and isinstance(v, str):
         return _ALIAS.get(v.replace(" ", "").strip(".").strip(), v)
+    if key == "importance" and isinstance(v, str):
+        return _IMPORTANCE.get(v.replace(" ", "").strip(".").lower(), v)
     return v
 
 

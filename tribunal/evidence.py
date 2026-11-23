@@ -162,10 +162,13 @@ def _confidence(nums: List[dict], status: str):
 
 
 def mark_split(result: dict, n_jurors: Optional[int] = None) -> None:
-    """배심원 의견이 크게 갈린 이의에 split=True. 판단한 표(타당·과장)가 3표 이상이고 두 쪽 차이가 1표 이하일 때.
-    ('확인 불가'는 판단을 맡긴 표라 갈림에 넣지 않는다. rules.objection_verdict 와 같은 기준)"""
+    """배심원 의견이 크게 갈린 이의에 split=True. 판단한 표(동의·비동의)가 3표 이상이고 두 쪽 차이가 1표 이하일 때.
+    ('판단 불가'는 판단을 맡긴 표라 갈림에 넣지 않는다. rules.objection_verdict 와 같은 기준)"""
     for c in result.get("claims", []):
         for o in c.get("objections", []):
             t = o.get("tally") or {}
-            a, b = t.get("타당", 0), t.get("과장", 0)
+            if "동의" in t:
+                a, b = t["동의"], t.get("비동의", 0)
+            else:                                    # 예전 결과: 과장은 동의(하)라 비동의 표가 없다
+                a, b = t.get("타당", 0) + t.get("과장", 0), 0
             o["split"] = bool(a + b >= 3 and abs(a - b) <= 1)

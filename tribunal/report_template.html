@@ -37,7 +37,7 @@ h3{font-size:14px; margin:22px 0 8px; color:var(--sub); font-weight:700; letter-
 .grade{margin-left:auto; text-align:right}
 .grade small{display:block; color:var(--sub); font-size:12px}
 .grade span{display:inline-block; font-size:28px; font-weight:800; padding:2px 16px; border-radius:4px; color:#fff}
-.g-재심리{background:var(--fix)} .g-조건부{background:var(--chk)} .g-통과{background:var(--ok)}
+.g-재검토{background:var(--fix)} .g-조건부{background:var(--chk)} .g-통과{background:var(--ok)}
 .two{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px}
 .box{border:1px solid var(--line); border-radius:6px; padding:14px 16px; background:#fff}
 .box .lab{font-size:12px; font-weight:700; color:var(--sub)}
@@ -88,7 +88,7 @@ body[data-view=talk] #legendFloat{display:block; position:fixed; right:14px; bot
 #card .meta{color:var(--sub); font-size:12px}
 #card .votes{margin:6px 0 0; padding:0; list-style:none} #card .votes li{padding:1px 0}
 #card .pin{float:right; font-size:11px; color:var(--sub)}
-.v-타당{color:var(--fix); font-weight:700} .v-과장{color:var(--keep); font-weight:700} .v-확인{color:var(--chk); font-weight:700} .v-기권{color:#8a8f98}
+.v-동의{color:var(--fix); font-weight:700} .v-비동의{color:var(--keep); font-weight:700} .v-판단{color:var(--chk); font-weight:700} .v-기권{color:#8a8f98}
 /* 기록 */
 details{border:1px solid var(--line); border-radius:6px; padding:10px 14px; margin:8px 0; background:#fff}
 summary{cursor:pointer; font-weight:700}
@@ -134,7 +134,7 @@ const refs = ids => ids.length ? ids.map(i => D.rows[i] ? `${esc(i)} (${D.rows[i
 /* ---------- 1부 요약지 ---------- */
 (function summary(){
   const m = D.meta, c = D.claims, n = D.checks;
-  const gcls = D.grade === '재심리' ? '재심리' : D.grade === '통과' ? '통과' : '조건부';
+  const gcls = (D.grade === '재검토 필요' || D.grade === '재심리') ? '재검토' : D.grade === '통과' ? '통과' : '조건부';
   const demo = m.demo ? ' · DEMO' : '';
   $('#summary').innerHTML = `
     ${D.mock ? '<div class="mock"><b>MOCK 실행</b> · AI를 부르지 않고 미리 써 둔 가짜 답으로 만든 기록지입니다. 이의와 표는 판단 근거로 쓰지 마세요. 숫자 검증은 코드가 실제로 계산한 값입니다.</div>' : ''}
@@ -151,7 +151,7 @@ const refs = ids => ids.length ? ids.map(i => D.rows[i] ? `${esc(i)} (${D.rows[i
         <div class="cnt"><div class="c-ok"><b>${count(n,x=>x.result==='일치')}</b>일치</div>
           <div class="c-fix"><b>${count(n,x=>x.result==='불일치')}</b>불일치</div>
           <div><b>${count(n,x=>x.result==='확인 불가')}</b>확인 불가</div></div></div>
-      <div class="box"><span class="who">AI 반대신문</span><div class="lab">논리 평가 · 주장 ${c.length}개</div>
+      <div class="box"><span class="who">AI 검토</span><div class="lab">논리 평가 · 주장 ${c.length}개</div>
         <div class="cnt"><div class="c-fix"><b>${count(c,x=>x.verdict==='수정')}</b>수정</div>
           <div class="c-chk"><b>${count(c,x=>x.verdict==='확인 필요'||x.verdict==='판정 보류')}</b>확인 필요</div>
           <div class="c-keep"><b>${count(c,x=>x.verdict==='유지')}</b>유지</div></div></div>
@@ -168,7 +168,7 @@ const refs = ids => ids.length ? ids.map(i => D.rows[i] ? `${esc(i)} (${D.rows[i
       ${D.issues.map(i => { const cl = c.find(x => x.objections.some(o => o.id === i.objection_id));
         return `<li><a href="#p${cl?.page ?? 1}">${esc(i.objection_id)}</a> ${esc(i.title)}</li>`; }).join('')}
     </ol>
-    <h3>직접 확인할 것</h3>
+    <h3>투자 전에 직접 확인할 사항</h3>
     <ul class="todo">${D.checklist.length ? D.checklist.map((t, i) => `<li><input type="checkbox" id="td${i}" data-k="todo${i}">
       <label for="td${i}">(${esc(t.type)}) ${esc(t.what)} <small>· ${esc(t.why)} · ${esc(t.claim_id)}</small></label></li>`).join('') : '<li>없음</li>'}</ul>
     <h3>색 범례</h3><div class="legend">${LEGEND}</div>
@@ -193,15 +193,16 @@ D.marks.forEach(mk => {
 
 /* ---------- 커서 카드 ---------- */
 const card = $('#card'); let pinned = null;
-const voteCls = v => 'v-' + (v === '확인 불가' ? '확인' : v);
+const OLDV = {'타당':'동의','과장':'동의','확인 불가':'판단 불가'};   // 예전 과장 = 동의(중요도 하)
+const voteCls = v => 'v-' + ({'판단 불가':'판단'}[OLDV[v]||v] || OLDV[v] || v);
 function claimCard(id){
   const c = D.claims.find(x => x.id === id);
   return `<div class="hd">${esc(c.id)}${c.core ? ' ★' : ''} ${tag(c.verdict)}<span class="meta" style="font-weight:400">${c.page}쪽</span></div>
     ${c.ruling ? `<div><b>판사</b> ${esc(c.ruling.reason)} <span class="meta">투자의견 영향 ${esc(c.ruling.impact)}${c.ruling.fix_part ? ' · 검토할 부분 ' + esc(c.ruling.fix_part) : ''}</span></div>` : ''}
     ${c.objections.map(o => `<div class="ob"><div><b>${esc(o.id)}</b> ${tag(o.verdict)} <span class="meta">${esc(o.by)} · ${esc(o.type)} · ${esc(o.kind)}</span></div>
-      <div>${esc(o.text)}</div><div class="meta">반대 근거: ${refs(o.ids)}${o.removed.length ? ' · 입력에 없어 지운 id: ' + esc(o.removed.join(', ')) : ''}</div>
-      ${o.votes.length ? `<div class="meta">타당 ${o.tally['타당']} · 과장 ${o.tally['과장']} · 확인 불가 ${o.tally['확인 불가']} · 기권 ${o.tally['기권']}</div>
-        <ul class="votes">${o.votes.map(v => `<li><span class="${voteCls(v.vote)}">${esc(v.vote)}</span> ${esc(v.who)}${v.reason ? ' — ' + esc(v.reason) : ''}</li>`).join('')}</ul>`
+      <div>${esc(o.text)}</div><div class="meta">이의 근거: ${refs(o.ids)}${o.removed.length ? ' · 입력에 없어 지운 id: ' + esc(o.removed.join(', ')) : ''}</div>
+      ${o.votes.length ? `<div class="meta">동의 ${o.tally['동의'] ?? (o.tally['타당'] + o.tally['과장'])} · 비동의 ${o.tally['비동의'] ?? 0} · 판단 불가 ${o.tally['판단 불가'] ?? o.tally['확인 불가']} · 기권 ${o.tally['기권']}</div>
+        <ul class="votes">${o.votes.map(v => `<li><span class="${voteCls(v.vote)}">${esc(OLDV[v.vote] || v.vote)}${v.vote === '과장' ? '(하)' : ''}</span> ${esc(v.who)}${v.reason ? ' — ' + esc(v.reason) : ''}</li>`).join('')}</ul>`
         : '<div class="meta">배심원이 추가한 이의라 표가 없습니다.</div>'}</div>`).join('')}`;
 }
 function numCard(id){

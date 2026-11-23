@@ -81,7 +81,8 @@ def external_marks(pdf: Path, report: Report, *exts: Optional[dict]) -> List[dic
     return marks
 
 
-def augment(run_dir: Path, checks: Dict[str, "object"], pdf: Optional[Path] = None) -> Dict[str, dict]:
+def augment(run_dir: Path, checks: Dict[str, "object"], pdf: Optional[Path] = None, pool: bool = False,
+            saved: bool = False) -> Dict[str, dict]:
     """이미 끝난 분석의 result.json 에 공식 데이터 대조를 더한다 (AI를 부르지 않는다).
     checks: {'dart': (모듈, 클라이언트)…}. 처음 한 번 result.before-external.json 으로 원래 파일을 남긴다."""
     report = Report.model_validate_json((run_dir / "claims.json").read_text(encoding="utf-8"))
@@ -90,7 +91,24 @@ def augment(run_dir: Path, checks: Dict[str, "object"], pdf: Optional[Path] = No
     backup = run_dir / "result.before-external.json"
     if not backup.exists() and not (run_dir / "result.before-dart.json").exists():
         shutil.copyfile(res_path, backup)
-    exts = {name: mod.run(report, client) for name, (mod, client) in checks.items()}
+    if saved:                                       # --saved: 저장해 둔 대조 결과(external_*.json)로 다시 합친다. 공시·AI 를 다시 부르지 않는다
+        exts = {name: json.loads((run_dir / f"external_{name}.json").read_text(encoding="utf-8")) for name in checks}
+        if "dart" in exts:
+            from . import dart_pool
+            gone = dart_pool.prune(report, exts["dart"])
+            if gone:
+                print(f"DART 결과에서 뺀 것(리포트의 다른 계산 결과를 재료로 잘못 짝지음): {', '.join(gone)}")
+            if exts["dart"].get("target"):
+                dart_pool.add_fact_values(report, exts["dart"], dart=checks["dart"][1])   # 보유 주식 수 × 종가 (공식 데이터만, 무료)
+    else:
+        exts = {name: mod.run(report, client) for name, (mod, client) in checks.items()}
+    if pool and not saved and "dart" in exts and exts["dart"].get("target"):     # --pool: DART 통째 짝 찾기 (AI 를 부른다, 유료)
+        from . import dart_pool
+        from ..runner import load_config
+        covered = {x["stated_rid"] for v in exts.values() for x in v.get("results", [])}
+        covered |= {x.get("stated_rid") for x in result["numbers"]["results"]
+                    if x.get("kind") in ("krx", "ecos", "kosis") and x.get("stated_rid")}
+        exts["dart"]["pool_info"] = dart_pool.extend(report, exts["dart"], covered, load_config(), dart=checks["dart"][1])
     from .. import formula_check
     nc = {"results": result["numbers"]["results"], "count": result["numbers"]["count"]}
     nc = formula_check.extend(nc, report)          # 고정 산식 검산도 함께 새로 고친다 (코드만 쓰므로 무료)

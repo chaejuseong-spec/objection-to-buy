@@ -53,15 +53,15 @@ export default function GuidePage() {
         <section id="what" className={s.section}>
           <h2>1. 무엇을 하나</h2>
           <p>
-            증권사 리서치 리포트 PDF 한 편을 넣으면, AI 여러 명이 법정처럼 역할을 나눠 리포트의 주장을 따져 묻고 판정을 냅니다.
+            기업분석 리포트 PDF 한 편을 넣으면, AI 여러 명이 법정처럼 역할을 나눠 리포트의 주장을 따져 묻고 판정을 냅니다.
             리포트를 고치지는 않고 평가만 합니다. 매수, 보유, 매도는 사람이 정합니다.
           </p>
           <table className={s.table}>
             <thead><tr><th>순서</th><th>하는 일</th></tr></thead>
             <tbody>
-              <tr><td>리포트 입력</td><td>PDF에서 주장 3~7개와 숫자 20~40개를 원문 그대로 옮겨 적습니다. 원문에 글자 그대로 없는 것은 코드가 버립니다.</td></tr>
-              <tr><td>리스크 검토자</td><td>주장마다 약한 고리를 찾아 이의를 0~2개 냅니다. 못 찾으면 &ldquo;이의 없음&rdquo;입니다.</td></tr>
-              <tr><td>배심원 5명</td><td>회계사, 산업 전문가, 공매도 투자자, 통계학자, 행동경제학자가 서로의 표를 보지 않고 이의마다 투표합니다. 놓친 이의가 있으면 1개까지 더할 수 있습니다.</td></tr>
+              <tr><td>추출 담당</td><td>PDF에서 주장 3~7개, 숫자 20~60개(공시·통계 대조용 포함), 표를 원문 그대로 옮겨 적고 업종을 정합니다. 원문에 글자 그대로 없는 것은 코드가 버립니다.</td></tr>
+              <tr><td>리스크 검토자</td><td>원문 전체를 읽고 근거가 있는 이의를 원문 인용과 함께 냅니다(최대 30개). 업종에 맞는 업종별 심화 모듈을 함께 봅니다. 못 찾으면 &ldquo;이의 없음&rdquo;입니다.</td></tr>
+              <tr><td>배심원 5명</td><td>회계사, 산업 전문가, 공매도 투자자, 통계학자, 행동경제학자가 서로의 표를 보지 않고 이의마다 투표합니다. 업종별 심화 모듈 가운데 자기 분야 칸을 함께 봅니다. 놓친 이의가 있으면 1개까지 더할 수 있고, 그 이의는 나머지 배심원이 2차 표결합니다.</td></tr>
               <tr><td>판사</td><td>코드가 정한 판정을 받아 핵심 쟁점과 판정 근거를 글로 정리합니다. 판정을 바꾸지는 않습니다.</td></tr>
               <tr><td>코드</td><td>표를 세어 판정을 정하고, 리포트에 적힌 식으로 숫자를 다시 계산합니다. AI는 판정과 숫자를 정하지 않습니다.</td></tr>
             </tbody>
@@ -72,7 +72,7 @@ export default function GuidePage() {
           <h2>2. 쓰는 순서</h2>
           <ol className={s.steps}>
             <li><strong>PDF 올리기</strong>왼쪽 위 <b>새 리포트 올리기</b>를 누르거나, 화면 아무 곳에나 PDF를 끌어다 놓습니다. 올리기만 해서는 비용이 들지 않습니다. 글자를 고를 수 있는 PDF여야 하고, 스캔한 이미지 PDF는 읽지 못합니다.</li>
-            <li><strong>비용 확인</strong>쪽수, AI 호출 수(보통 8번), 사용 모델, 최대 사용량이 나옵니다. 최대 사용량은 넉넉하게 잡은 상한이라 실제로는 대부분 더 적게 씁니다.</li>
+            <li><strong>비용 확인</strong>쪽수, AI 호출 수(보통 8번, 배심원이 새 이의를 찾으면 최대 13번), 사용 모델, 최대 사용량이 나옵니다. 최대 사용량은 넉넉하게 잡은 상한이라 실제로는 대부분 더 적게 씁니다.</li>
             <li><strong>분석 시작</strong><b>비용을 확인했고, 분석을 시작합니다</b>를 누르면 그때부터 AI를 부르고 비용이 발생합니다. 보통 3분에서 10분 걸립니다.</li>
             <li><strong>기다리기</strong>진행 단계가 하나씩 체크됩니다. 창을 닫거나 다른 리포트를 봐도 분석은 계속되고, 다시 열면 이어서 보입니다. 분석은 한 번에 하나만 돌릴 수 있습니다.</li>
             <li><strong>결과 읽기</strong>끝나면 탭으로 결과를 봅니다. 아래 <a href="#tabs">탭별로 보는 법</a>을 참고하세요.</li>
@@ -88,23 +88,24 @@ export default function GuidePage() {
               <strong style={{ color: C.red.ink }}>빨강: 고쳐야 함</strong>
               <p><Chip tone="red">수정</Chip> 이의가 맞고 근거도 있음<br />
                  <Chip tone="red">불일치</Chip> 다시 계산한 숫자가 다름<br />
-                 <Chip tone="red">재심리</Chip> 핵심 주장에 수정이 있음<br />
-                 <Chip tone="red">타당</Chip> 배심원이 이의에 찬성</p>
+                 <Chip tone="red">재검토 필요</Chip> 핵심 주장이나 결론을 바꿀 수 있는 곳에 수정이 있음<br />
+                 <Chip tone="red">동의</Chip> 배심원이 이의가 맞다고 봄</p>
             </div>
             <div style={{ background: C.orange.soft, borderColor: C.orange.line }}>
-              <strong style={{ color: C.orange.ink }}>주황: 직접 확인할 것</strong>
+              <strong style={{ color: C.orange.ink }}>주황: 직접 확인이 필요한 곳</strong>
               <p><Chip tone="orange">확인 필요</Chip> 맞을 수도 있으나 근거가 부족함<br />
                  <Chip tone="orange">판정 보류</Chip> 표가 모자라 판정을 못 함<br />
-                 <Chip tone="orange">확인 불가</Chip> 받은 자료로는 판단할 수 없음<br />
+                 <Chip tone="orange">판단 불가</Chip> 배심원이 받은 자료나 자기 분야로는 판단할 수 없음<br />
                  <Chip tone="orange">검증 불가</Chip> 공시와 대조할 자료나 기준이 부족함<br />
-                 <Chip tone="orange">조건부 통과</Chip> 큰 문제는 없으나 확인할 곳이 남음</p>
+                 <Chip tone="orange">조건부 통과</Chip> 결론은 유지되나 고칠 점이나 확인할 곳이 남음<br />
+                 <Chip tone="orange">판정 불완전</Chip> 핵심 주장의 판정을 내리지 못함</p>
             </div>
             <div style={{ background: C.green.soft, borderColor: C.green.line }}>
               <strong style={{ color: C.green.ink }}>초록: 문제없음</strong>
-              <p><Chip tone="green">유지</Chip> 이의가 없거나 영향이 작음<br />
+              <p><Chip tone="green">유지</Chip> 이의가 없거나, 맞지 않거나(이의 불인정), 영향이 작음(경미한 지적)<br />
                  <Chip tone="green">일치</Chip> 다시 계산한 숫자가 같음<br />
                  <Chip tone="green">통과</Chip> 수정할 곳을 찾지 못함<br />
-                 <Chip tone="green">과장</Chip> 배심원이 이의의 영향이 작다고 봄</p>
+                 <Chip tone="green">비동의</Chip> 배심원이 이의가 맞지 않다고 봄</p>
             </div>
           </div>
           <p className={s.muted}><b>원문에서 보기</b> 탭에서는 PDF 위 문장이 이 색으로 칠해집니다. 빨간 칠은 수정, 주황 칠은 확인 필요, 초록 칠은 유지된 주장입니다.</p>
@@ -112,19 +113,21 @@ export default function GuidePage() {
 
         <section id="verdict" className={s.section}>
           <h2>4. 판정은 어떻게 정해지나</h2>
-          <p>판정은 AI가 고르지 않고 코드가 아래 규칙대로 계산합니다. &ldquo;확인 불가&rdquo;는 &lsquo;내 분야 밖이라 판단을 맡긴다&rsquo;는 표라서 판정을 막지 않습니다. 실제로 판단한 표(타당·과장)가 3표 이상일 때 그 가운데 과반으로 정합니다.</p>
+          <p>판정은 AI가 고르지 않고 코드가 아래 규칙대로 계산합니다. 배심원은 이의마다 <b>동의 / 비동의 / 판단 불가</b>를 고르고, 동의하면 <b>중요도(상 / 중 / 하)</b>를 함께 적습니다. 중요도는 &ldquo;이 지적이 사실이라면 투자의견이나 목표주가가 달라질 수 있나&rdquo;로 매깁니다. &ldquo;판단 불가&rdquo;는 판단을 맡긴 표라서 판정을 막지 않고, 실제로 판단한 표(동의·비동의)가 3표 이상일 때 판정합니다.</p>
 
           <h3>이의 하나의 판정</h3>
           <table className={s.table}>
             <thead><tr><th>배심원 표</th><th>판정</th></tr></thead>
             <tbody>
-              <tr><td>판단한 표 가운데 &ldquo;타당&rdquo;이 과반이고, 리스크 검토자가 반대 근거를 댐</td><td><Chip tone="red">수정</Chip></td></tr>
-              <tr><td>판단한 표 가운데 &ldquo;타당&rdquo;이 과반인데, 반대 근거가 없음</td><td><Chip tone="orange">확인 필요</Chip></td></tr>
-              <tr><td>판단한 표 가운데 &ldquo;과장&rdquo;이 과반</td><td><Chip tone="green">유지</Chip></td></tr>
-              <tr><td>판단한 표가 3표 미만 (대부분 &ldquo;확인 불가&rdquo;)</td><td><Chip tone="orange">확인 필요</Chip></td></tr>
-              <tr><td>판단한 표가 타당과 과장으로 똑같이 갈림</td><td><Chip tone="orange">확인 필요</Chip></td></tr>
-              <tr><td>낸 표(기권 제외)가 과반에 못 미침</td><td><Chip tone="orange">판정 보류</Chip></td></tr>
-              <tr><td>배심원이 직접 추가한 이의</td><td><Chip tone="orange">확인 필요</Chip> 까지만</td></tr>
+              <tr><td>&ldquo;동의&rdquo;가 과반이고, 동의한 배심원의 중요도가 상·중이 과반 (이의 근거가 확인됨)</td><td><Chip tone="red">수정</Chip></td></tr>
+              <tr><td>위와 같은데 이의 근거(숫자나 원문 인용)가 확인되지 않음</td><td><Chip tone="orange">확인 필요</Chip></td></tr>
+              <tr><td>&ldquo;동의&rdquo;가 과반이지만 중요도 &ldquo;하&rdquo;가 과반</td><td><Chip tone="green">유지</Chip> (경미한 지적)</td></tr>
+              <tr><td>&ldquo;비동의&rdquo;가 과반</td><td><Chip tone="green">유지</Chip> (이의 불인정)</td></tr>
+              <tr><td>&ldquo;동의&rdquo;가 과반인데 중요도가 갈림</td><td><Chip tone="orange">확인 필요</Chip></td></tr>
+              <tr><td>판단한 표가 3표 미만 (대부분 &ldquo;판단 불가&rdquo;)</td><td><Chip tone="orange">확인 필요</Chip></td></tr>
+              <tr><td>판단한 표가 동의와 비동의로 똑같이 갈림</td><td><Chip tone="orange">확인 필요</Chip></td></tr>
+              <tr><td>유효표(기권 제외)가 과반에 못 미침</td><td><Chip tone="orange">판정 보류</Chip></td></tr>
+              <tr><td>배심원이 직접 추가한 이의</td><td>이의를 낸 배심원을 뺀 나머지가 <b>2차 표결</b>, 위와 같은 규칙 (예전 분석처럼 2차 표결이 없으면 <Chip tone="orange">확인 필요</Chip> 까지만)</td></tr>
             </tbody>
           </table>
 
@@ -135,9 +138,10 @@ export default function GuidePage() {
           <table className={s.table}>
             <thead><tr><th>조건</th><th>평가</th><th>뜻</th></tr></thead>
             <tbody>
-              <tr><td>핵심 주장(목표주가, 밸류에이션 등) 중 하나라도 수정</td><td><Chip tone="red">재심리</Chip></td><td>투자의견을 떠받치는 주장이 흔들립니다. 리포트를 다시 따져봐야 합니다.</td></tr>
-              <tr><td>그 밖에 수정, 확인 필요, 판정 보류가 하나라도 있음</td><td><Chip tone="orange">조건부 통과</Chip></td><td>결론은 유지되지만, 표시된 곳을 직접 확인한 뒤 쓰세요.</td></tr>
-              <tr><td>모든 주장이 유지</td><td><Chip tone="green">통과</Chip></td><td>주장과 숫자에서 수정할 곳을 찾지 못했습니다.</td></tr>
+              <tr><td>핵심 주장(목표주가, 밸류에이션 등) 중 하나라도 수정, 또는 중요도 &ldquo;상&rdquo;으로 수정된 이의가 있음</td><td><Chip tone="red">재검토 필요</Chip></td><td>투자의견을 떠받치는 부분이 흔들립니다. 리포트를 다시 검토해야 합니다.</td></tr>
+              <tr><td>핵심 주장의 판정을 내리지 못함 (AI 호출 실패 등)</td><td><Chip tone="orange">판정 불완전</Chip></td><td>다시 분석해 보세요.</td></tr>
+              <tr><td>그 밖에 수정된 이의가 있거나, 핵심 주장이 확인 필요</td><td><Chip tone="orange">조건부 통과</Chip></td><td>결론은 유지되지만, 표시된 곳을 직접 확인한 뒤 쓰세요.</td></tr>
+              <tr><td>그 밖</td><td><Chip tone="green">통과</Chip></td><td>결론을 흔드는 문제를 찾지 못했습니다. 핵심이 아닌 곳의 확인 필요와 경미한 지적은 &lsquo;투자 전에 직접 확인할 사항&rsquo;에 나옵니다.</td></tr>
             </tbody>
           </table>
 
@@ -161,7 +165,7 @@ export default function GuidePage() {
             <div><dt>리포트 요약</dt><dd>리포트 전체 평가와 한 줄 설명, 주장 목록과 각 판정이 나옵니다. 처음에는 여기서 빨간 주장부터 보세요.</dd></div>
             <div><dt>수치와 도표</dt><dd>리포트의 핵심 숫자, 연도별 표, 원문 도표와 숫자 검증 결과가 나옵니다. 쪽 번호를 누르면 원문 그 쪽으로 갑니다.</dd></div>
             <div><dt>원문에서 보기</dt><dd>PDF 원문 위에 판정 색이 칠해집니다. 칠한 곳을 누르면 오른쪽 칸에 그 주장의 이의와 배심원 표가 열립니다. 위쪽에서 색별로 거르거나 확대할 수 있습니다.</dd></div>
-            <div><dt>반대신문 과정</dt><dd>주장마다 리스크 검토자의 이의, 배심원 5명의 표와 이유, 판사의 정리가 차례로 나옵니다. 판정이 왜 그렇게 나왔는지 여기서 확인합니다.</dd></div>
+            <div><dt>검토 과정</dt><dd>숫자 문제와 논리 문제를 중요도 순으로 모은 문제 목록, 그리고 주장마다 리스크 검토자의 이의, 배심원 5명의 표와 이유, 판사의 정리가 차례로 나옵니다. 판정이 왜 그렇게 나왔는지 여기서 확인합니다.</dd></div>
             <div><dt>채점</dt><dd>에이전트가 잘하고 있는지 점수로 재는 곳입니다. 리포트를 읽고 내가 찾은 문제를 적은 뒤, 에이전트 이의 중 같은 것을 체크하고 남은 이의와 숫자 검증을 맞음/틀림으로 고릅니다. 찾은 비율, 헛짚은 비율, 숫자 정확도가 나오고, 기록해 두면 에이전트를 고친 뒤의 점수와 비교할 수 있습니다. 같은 PDF를 다시 올려도 내가 적은 문제 목록은 그대로 이어집니다.</dd></div>
             <div><dt>나의 판단 기록</dt><dd>내 결론과 이유를 적어 두는 곳입니다. 저장한 기록은 오른쪽에 쌓이고 CSV로 내보낼 수 있습니다.</dd></div>
           </dl>
@@ -173,10 +177,11 @@ export default function GuidePage() {
           <dl className={s.defs}>
             <div><dt>사실 오류</dt><dd>숫자, 날짜, 정의가 틀렸거나 리포트 안에서 서로 맞지 않는 경우입니다. 확인하면 맞고 틀림이 갈립니다.</dd></div>
             <div><dt>해석 차이</dt><dd>같은 사실을 다르게 읽은 경우입니다. 정답이 없을 수 있어 판단은 사람 몫입니다.</dd></div>
-            <div><dt>의심 유형</dt><dd>숫자의 기준, 기간 선택, 가정의 근거, 논리 연결, 빠진 위험, 근거의 독립성. 리스크 검토자는 이의마다 이 중 하나를 붙입니다.</dd></div>
-            <div><dt>타당 / 과장 / 확인 불가</dt><dd>배심원의 세 가지 표입니다. 타당은 &ldquo;이의가 맞고 결론이 달라질 수 있다&rdquo;, 과장은 &ldquo;맞지만 영향이 작다&rdquo;, 확인 불가는 &ldquo;받은 자료로는 모른다&rdquo;입니다.</dd></div>
+            <div><dt>의심 유형</dt><dd>숫자의 기준, 기간 선택, 가정의 근거, 논리 연결, 위험 누락, 근거의 독립성. 리스크 검토자는 이의마다 이 중 하나를 붙입니다.</dd></div>
+            <div><dt>동의 / 비동의 / 판단 불가</dt><dd>배심원의 세 가지 표입니다. 동의는 &ldquo;이의가 맞다&rdquo;, 비동의는 &ldquo;이의가 맞지 않다&rdquo;, 판단 불가는 &ldquo;받은 자료나 내 분야로는 모른다&rdquo;입니다. 동의하면 중요도(상 / 중 / 하)를 함께 적습니다.</dd></div>
+            <div><dt>중요도</dt><dd>지적이 사실이라면 투자 결론이 얼마나 흔들리는지입니다. 상은 투자의견이나 목표주가가 달라질 수 있음, 중은 결론을 받치는 중요한 근거가 약해짐, 하는 결론과 주요 근거가 거의 그대로임을 뜻합니다.</dd></div>
             <div><dt>기권</dt><dd>배심원 AI가 답을 못 했거나 그 이의에 표를 내지 않은 경우입니다. 기권이 많으면 판정 보류가 됩니다.</dd></div>
-            <div><dt>핵심 주장</dt><dd>투자의견을 직접 떠받치는 주장(목표주가, 밸류에이션)입니다. 여기에 수정이 나오면 리포트 전체가 재심리가 됩니다.</dd></div>
+            <div><dt>핵심 주장</dt><dd>투자의견을 직접 떠받치는 주장(목표주가, 밸류에이션)입니다. 여기에 수정이 나오면 리포트 전체가 재검토 필요가 됩니다.</dd></div>
             <div><dt>투자 전에 직접 확인할 사항</dt><dd>확인 필요, 판정 보류, 핵심 주장의 수정 가운데 최대 5개를 골라 둔 목록입니다. 사실 오류가 앞에 오고, 확인한 것은 체크해 둘 수 있습니다.</dd></div>
           </dl>
         </section>

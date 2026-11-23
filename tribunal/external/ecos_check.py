@@ -30,6 +30,7 @@ from .ecos import SITE, Ecos, EcosError
 
 PREFIX = "E"
 NEAR = 1.0      # % : 이 안의 차이는 계산 방식 차이일 수 있어 불일치로 보지 않는다
+NEAR_DAYS = 30  # 기간을 밝히지 않은 금리·환율: 작성일 전 몇 영업일의 값과 견줄지
 
 # (이름, 찾을 말, 빼는 말, 평균 통계표, 일별 통계표, 항목, 단위, 종류)
 INDICATORS = [
@@ -184,6 +185,22 @@ def official(ecos: Ecos, spec: tuple, per: dict, report_date: str) -> Tuple[List
     return cands, table or day_stat, "M" if table else "D", url or res["api_url"], max(seen) if seen else ""
 
 
+def near_report(ecos: Ecos, spec: tuple, report_date: str) -> Tuple[List[Tuple[str, float]], str, str, str, str]:
+    """기간을 밝히지 않은 수준 지표(금리·환율): 작성일 무렵의 값 후보. 직전 30영업일 하나하나, 직전 1개월·3개월 일별 평균.
+    (2026-11-21 실제 리포트 분석: CAPM 무위험수익률 4.074%는 작성일 2주 전(10/26) 값이었다)"""
+    end = date.fromisoformat(report_date)
+    res = ecos.series(spec[4], "D", _ymd(end - timedelta(days=95)), _ymd(end), spec[5])
+    vals = [(t, v) for t, v in _values(res["rows"]) if t <= _ymd(end)]
+    cands: List[Tuple[str, float]] = []
+    for t, v in vals[-NEAR_DAYS:][::-1]:
+        cands.append((f"{t[:4]}-{t[4:6]}-{t[6:]} 값", v))
+    for days, label in ((31, "직전 1개월"), (92, "직전 3개월")):
+        xs = [v for t, v in vals if t > _ymd(end - timedelta(days=days))]
+        if xs:
+            cands.append((f"{label} 일별 평균", mean(xs)))
+    return cands, spec[4], "D", res["api_url"], res["fetched_at"]
+
+
 def check_row(ecos: Ecos, row: DataRow, info: dict, report_date: str, cid: str) -> dict:
     spec, per = info["spec"], info["period"]
     name_ = spec[0]
@@ -196,11 +213,17 @@ def check_row(ecos: Ecos, row: DataRow, info: dict, report_date: str, cid: str) 
     stated = parse_number(row.value, row.unit)
     if stated is None:
         return res(UNVERIFIABLE, f"리포트 값 '{row.value}'를 숫자 하나로 읽지 못했습니다.")
-    if not per and spec[7] != "point":
+    near = not per and spec[7] != "point"              # 기간을 밝히지 않음: 작성일 무렵 값과 견주어 본다 (2026-11-21)
+    if near and not spec[4]:
         return res(UNVERIFIABLE, "어느 기간의 값인지 리포트에서 찾지 못해 대조하지 않았습니다.")
     if per and per["end"].isoformat() > report_date:
         return res(UNVERIFIABLE, f"{per['label']}은 리포트 작성일({report_date})에 아직 끝나지 않은 기간입니다.")
-    cands, table, cycle, url, fetched = official(ecos, spec, per or {"cycle": None, "start": None, "end": None}, report_date)
+    if near:
+        cands, table, cycle, url, fetched = near_report(ecos, spec, report_date)
+        label = "기간 미상, 작성일 무렵 값과 비교"
+        name = f"{name_} ({label}), 통계 대조"
+    else:
+        cands, table, cycle, url, fetched = official(ecos, spec, per or {"cycle": None, "start": None, "end": None}, report_date)
     if not cands:
         why = "ECOS에 그 기간 자료가 없습니다"
         return res(UNVERIFIABLE, f"{why}.")
@@ -216,7 +239,7 @@ def check_row(ecos: Ecos, row: DataRow, info: dict, report_date: str, cid: str) 
         "display": [["출처", "한국은행 경제통계시스템(ECOS)"],
                     ["지표", f"{name_} (통계표 {table}, 항목 {spec[5]})"],
                     ["기간", label],
-                    ["비교 값", ", ".join(f"{k} {fmt(v)}" for k, v in cands)]],
+                    ["비교 값", ", ".join(f"{k} {fmt(v)}" for k, v in (cands if not near else [best] + [c for c in cands if "평균" in c[0] and c != best]))]],
         "short": f"ECOS {name_}, {label}, {best[0]}",
         "provider": "한국은행 ECOS", "stat_code": table, "item_code": spec[5], "cycle": cycle,
         "period": label, "url": SITE, "api_url": url,
@@ -224,7 +247,12 @@ def check_row(ecos: Ecos, row: DataRow, info: dict, report_date: str, cid: str) 
     }
     extra = dict(computed=fmt(best[1]), diff_pct=diff_pct, source=src, timing=src["timing"])
     if diff <= tol + 1e-9:
+        if near:
+            return res(MATCH, f"리포트가 기간을 밝히지 않아 작성일 무렵 값과 견주었습니다. {best[0]}({fmt(best[1])})와 같습니다(표시 자릿수 이내).", **extra)
         return res(MATCH, f"{label} {best[0]}({fmt(best[1])})와 같습니다(표시 자릿수 이내).", **extra)
+    if near:                                           # 기준을 모르므로 틀렸다고 하지 않는다
+        close = f" 가장 가까운 값은 {best[0]} {fmt(best[1])}({diff_pct}% 차이)로, 평균 낸 구간이 달라서일 수 있습니다." if diff_pct is not None and diff_pct <= NEAR else ""
+        return res(UNVERIFIABLE, f"리포트가 어느 기간의 값인지 밝히지 않았고, 작성일 무렵 값 가운데 같은 것이 없어 판단하지 않았습니다.{close}", **extra)
     if diff_pct is not None and diff_pct <= NEAR:
         return res(UNVERIFIABLE, f"{label} {best[0]}({fmt(best[1])})와 {diff_pct}% 다릅니다. 평균 내는 방식이나 기준(매매기준율·종가)의 차이일 수 있어 판단하지 않았습니다.", **extra)
     return res(MISMATCH, f"작성 당시 이미 끝난 기간({label})의 공식 값 {fmt(best[1])}과 {diff_pct}% 다릅니다.", **extra)

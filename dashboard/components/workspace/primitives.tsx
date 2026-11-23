@@ -72,6 +72,28 @@ export function Mix({ parts, label }: { parts: { tone: Tone; value: number }[]; 
   );
 }
 
+/** 배심원 표: 한 명당 점 하나. 동의(빨강) / 비동의(초록) / 판단 불가(주황), 0표인 칸은 흐리게 */
+export function VoteTally({ tally, who, note }: { tally: Record<string, number | unknown>; who?: string; note?: string }) {
+  const n = (k: string) => Number(tally[k] ?? 0);
+  const groups: { key: string; tone: Tone }[] = [{ key: "동의", tone: "red" }, { key: "비동의", tone: "green" }, { key: "판단 불가", tone: "orange" }];
+  const label = groups.map((g) => `${g.key} ${n(g.key)}`).join(", ") + (n("기권") ? `, 기권 ${n("기권")}` : "");
+  return (
+    <div className={s.voteTally} role="img" aria-label={`${who ? who + ": " : ""}${label}`}>
+      {who && <span className={s.voteWho}>{who}</span>}
+      {groups.map((g) => (
+        <span key={g.key} className={s.voteGroup} data-zero={n(g.key) === 0 || undefined}>
+          {n(g.key) > 0 && <span className={s.voteDots} aria-hidden="true">
+            {Array.from({ length: n(g.key) }, (_, i) => <i key={i} style={{ background: TONE[g.tone].ink }} />)}
+          </span>}
+          {g.key} <b>{n(g.key)}</b>
+        </span>
+      ))}
+      {n("기권") > 0 && <span className={s.voteGroup}>기권 <b>{n("기권")}</b></span>}
+      {note && <span className={s.voteNote}>{note}</span>}
+    </div>
+  );
+}
+
 export function Spinner() {
   return <span className={s.spinner} aria-hidden="true" />;
 }

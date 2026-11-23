@@ -5,7 +5,7 @@ python -m tribunal.quality plan [세트 이름]          돌리면 Gemini 를 �
 python -m tribunal.quality run [세트 이름] --yes     돌리고 채점한다. --yes 가 없으면 저장된 결과로만 돈다
 python -m tribunal.quality report [세트 이름]        지난 실행들과 비교한다 (무료)
 
-사본 하나에 Gemini 1번(리포트 입력). 지시서와 모델이 그대로면 저장해 둔 결과를 써서 0번이다.
+사본 하나에 Gemini 1번(추출 담당). 지시서와 모델이 그대로면 저장해 둔 결과를 써서 0번이다.
 """
 from __future__ import annotations
 

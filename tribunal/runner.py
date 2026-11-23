@@ -6,7 +6,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import yaml
 
@@ -54,6 +54,10 @@ def _step(out: Path, name: str, schema, fn, mock: bool):
         res = fn()
     finally:                                # 실패해도 이미 쓴 비용은 남긴다
         save_usage(out)
+        role = name.replace("juror2_", "juror_")             # 2차 표결은 같은 배심원 역할로 부른다
+        for k in [k for k in list(llm.FAILED_RAW) if k.startswith(role + ".try")]:   # 형식이 틀렸던 앞선 답
+            (out / "steps").mkdir(parents=True, exist_ok=True)
+            (out / "steps" / f"{k.replace(role, name)}.failed.txt").write_text(llm.FAILED_RAW.pop(k), encoding="utf-8")
     path.parent.mkdir(parents=True, exist_ok=True)
     if res is not None:
         path.write_text(res.model_dump_json(indent=1), encoding="utf-8")
@@ -71,8 +75,8 @@ def _save_failed(out: Path, role: str) -> None:
 
 def plan(report_path: Path, cfg: dict, n_jurors: int) -> dict:
     """실행 전에 호출 횟수와 예상 비용 상한을 계산한다."""
-    n_calls = 1 + n_jurors + 1
-    roles = ["prosecutor"] + ["juror"] * n_jurors + ["judge"]     # 역할마다 모델과 단가가 다를 수 있다
+    n_calls = 1 + n_jurors * 2 + 1          # 배심원 2차 표결(추가 이의가 있을 때만)까지 넣은 상한
+    roles = ["prosecutor"] + ["juror"] * (n_jurors * 2) + ["judge"]     # 역할마다 모델과 단가가 다를 수 있다
     if report_path.suffix.lower() == ".pdf":
         from .extract import read_pages
         pdf_chars = sum(len(p["text"]) for p in read_pages(report_path))
@@ -107,7 +111,7 @@ def run_pdf(pdf: Path, mock: bool, n_jurors: Optional[int] = None, out_root: Opt
         stats = json.loads(stats_done.read_text(encoding="utf-8"))
     else:
         try:
-            report, stats = extract(pdf, cfg, mock, mock_dir, demo=demo)
+            report, stats = extract(pdf, cfg, mock, mock_dir, demo=demo, raw_path=out / "steps" / "extractor.raw.json")
         finally:
             save_usage(out)
         _dump(out / "extraction.json", stats)
@@ -137,7 +141,7 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
     out = (out_root or ROOT / ".tribunal") / run_id
     out.mkdir(parents=True, exist_ok=True)
 
-    # 1) 사건 파일
+    # 1) 검토 자료
     case = build_case_file(report)
     _dump(out / "case_file.json", case)
 
@@ -151,6 +155,16 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
     from .external import common, dart_check, ecos_check, kosis_check, krx_check
     exts = {} if mock else {k: m.maybe_run(report, cfg) for k, m in (("dart", dart_check), ("krx", krx_check), ("ecos", ecos_check), ("kosis", kosis_check))}
     exts = {k: v for k, v in exts.items() if v is not None}
+    # DART 공시를 통째로 모아 아무도 대조하지 않은 숫자의 짝을 찾는다 (dart_pool, 2026-11-21). AI(Haiku)가 후보 번호만 고른다
+    if "dart" in exts and exts["dart"].get("target") and (cfg.get("external") or {}).get("dart_pool", True):
+        from .external import dart_pool
+        covered = {x["stated_rid"] for v in exts.values() for x in v.get("results", [])}
+        try:
+            info = dart_pool.extend(report, exts["dart"], covered, cfg)
+            llm._log(f"[dart_pool] 공시 숫자 {info.get('facts', 0):,}개에서 짝을 찾아 {info.get('picked', 0)}개를 더 대조했습니다 "
+                     f"(AI에게 물은 숫자 {info.get('asked', 0)}개)")
+        except Exception as e:                       # 짝 찾기가 안 돼도 분석은 이어 간다
+            llm._log(f"[dart_pool] 공시 짝 찾기를 하지 못했습니다: {type(e).__name__}")
     for k, v in exts.items():
         _dump(out / f"external_{k}.json", v)
         if v.get("error"):
@@ -158,7 +172,7 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
 
     nc_all = common.merge(nc, *exts.values())
 
-    # 리포트 원문. 리스크 검토자와 배심원이 요약본(사건 파일)뿐 아니라 원문 전체를 읽는다.
+    # 리포트 원문. 리스크 검토자와 배심원이 요약본(검토 자료)뿐 아니라 원문 전체를 읽는다.
     # 같은 원문을 맨 앞에 두므로 두 번째 호출부터는 캐시로 싸게 읽힌다. PDF가 없으면(JSON 입력) 요약본만 쓴다.
     pages, document = None, None
     if pdf:
@@ -166,11 +180,21 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
         pages = read_pages(pdf)
         document = llm.document_text(pages)
 
+    # 업종별 심화 모듈: 리스크 검토자와 다섯 배심원이 같은 업종 판단을 쓴다
+    # 2026-11-21 기본으로 끔(config sector_modules). 주의할 점은 공통 규칙에 있다
+    from . import modules
+    if cfg.get("sector_modules", False):
+        mod_keys, mod_how = modules.pick(report.meta)
+        llm._log(f"[modules] {', '.join(modules.SECTORS[k] for k in mod_keys)} ({mod_how})")
+    else:
+        mod_keys, mod_how = [], "업종 모듈 끔 (config sector_modules)"
+    pros_mod = modules.text_for_prosecutor(mod_keys)     # 업종 공통 + 다섯 배심원의 칸 전부 (이의 후보를 찾는 데 쓴다)
+
     # 2) 리스크 검토자
     pros_cfg = dict(cfg, max_output_tokens=cfg.get("prosecutor_max_output_tokens", cfg["max_output_tokens"]))
     pros = _step(out, "prosecutor", ProsecutorOut,
                  lambda: llm.call("prosecutor", dict(case, number_checks=brief_checks(nc_all)), ProsecutorOut,
-                                  pros_cfg, mock, mock_dir, document=document), mock)
+                                  pros_cfg, mock, mock_dir, document=document, extra=pros_mod), mock)
     if pros is None:      # 이의 없이 배심원·판사로 넘어가면 '문제 없음'처럼 보이는 잘못된 결과가 나온다. 여기서 멈춘다
         raise RuntimeError("리스크 검토자가 답을 끝까지 쓰지 못했습니다. 저장된 단계부터 다시 시도하세요.")
     raw_objs = pros.objections
@@ -186,10 +210,7 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
     payload = dict(case, objections=[o.model_dump(exclude={"removed_ids", "added_by"}) for o in objections],
                    number_checks=brief_checks(nc_all))   # 코드가 이미 확인한 숫자. 배심원이 직접 계산하지 않게 한다
     failed: Dict[str, str] = {}
-    from . import modules
-    mod_keys, mod_how = modules.pick(report.meta)          # 업종별 심화 점검 모듈: 다섯 배심원이 같은 업종 판단을 쓴다
     mod_used = [k for k in keys if modules.text_for(k, mod_keys)]
-    llm._log(f"[modules] {', '.join(modules.SECTORS[k] for k in mod_keys)} ({mod_how})")
 
     def ask(k: str) -> Optional[JurorOut]:
         try:
@@ -201,8 +222,9 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
             return None
 
     workers = max(1, min(n_jurors, int(cfg.get("max_concurrent_calls", 2))))
+    first = ask(keys[0])          # 첫 배심원이 원문·검토 자료를 캐시에 쓴 뒤 나머지가 읽는다 (동시에 쓰면 두 번 값을 낸다)
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        results = list(ex.map(ask, keys))
+        results = [first] + list(ex.map(ask, keys[1:]))
     if failed:
         names = ", ".join(JUROR_NAMES[k] for k in failed)
         raise RuntimeError(f"배심원 {len(failed)}명({names})의 AI 호출이 실패해 멈췄습니다. "
@@ -212,16 +234,19 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
         _dump(out / f"juror_{k}.json", {"juror": JUROR_NAMES[k], "abstained": r is None,
                                         **(r.model_dump() if r else {})})
 
-    # 배심원이 추가한 이의 (표 없음 -> 확인 필요)
+    # 배심원이 추가한 이의 -> 3-1) 이의를 낸 배심원을 뺀 나머지가 2차 표결 (2026-11-20)
     extras = []
     for k, r in jurors.items():
         if r and r.extra_objection:
             e = r.extra_objection
             extras.append(Objection(objection_id=f"J-{k}", added_by=JUROR_NAMES[k], **e.model_dump()))
-    all_objs = objections + rules.filter_counter_ids(extras, report, pages)
+    extras = rules.filter_counter_ids(extras, report, pages)
+    all_objs = objections + extras
+    round2 = second_round(out, extras, objections, case, nc_all, keys, mod_keys, cfg, mock, mock_dir, document)
 
-    # 4) 코드가 집계하고 판정
-    votes = {k: (r.votes if r else None) for k, r in jurors.items()}
+    # 4) 코드가 집계하고 판정 (1차 표 + 2차 표)
+    votes = {k: ((r.votes if r else []) + round2.get(k, [])) if (r or round2.get(k)) else None for k, r in jurors.items()}
+    jurors = {k: (r.model_copy(update={"votes": votes[k]}) if r else r) for k, r in jurors.items()}   # 화면·기록에 2차 표도 보이게
     ev = rules.evaluate(report, all_objs, votes, n_jurors)
     # 코드 검증에서 주장의 근거 숫자가 틀린 것으로 나오면 배심원 판정보다 엄한 쪽을 쓴다 (공식 데이터 불일치 -> 수정)
     ev = rules.apply_code_findings(report, ev, rules.code_findings(report, nc_all["results"]))
@@ -252,7 +277,8 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
     result["external"] = {k: common.summary(v) for k, v in exts.items()} or None
     result["code_findings"] = ev.get("code_findings", {})
     result["modules"] = {"sectors": [modules.SECTORS[k] for k in mod_keys], "how": mod_how,
-                         "jurors": [JUROR_NAMES[k] for k in mod_used]}   # 어떤 업종 모듈을 누구에게 붙였는지
+                         "jurors": [JUROR_NAMES[k] for k in mod_used],    # 어떤 업종별 심화 모듈을 누구에게 붙였는지
+                         "prosecutor": bool(pros_mod)}
     if pdf:                                    # 통과한 곳(초록). 화면에서 켤 때만 보인다
         from .marks import pass_marks
         result["marks"] = sorted(result["marks"] + pass_marks(pdf, report, result), key=lambda m: (m["page"], m["rects"][0][1]))
@@ -263,6 +289,23 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
                             {"dropped": {k: len(v) for k, v in extraction["dropped"].items()}}) if extraction else None
     result["figures"] = figures
     result["document"] = {"has_pdf": bool(pdf), "pages": n_pages, "not_found": not_found}
+    if pages:                                  # 화면에서 인용을 문장 전체로 보여 주고 짚은 구절만 굵게
+        from .quote_context import add_to_result
+        add_to_result(result, pages)
+        if pdf:                                # 원문 위에도 문장 전체를 연하게
+            from .marks import add_context_rects
+            add_context_rects(pdf, result)
+    # 기본 종목정보 (2026-11-22): 지금 기준 재무·실적·배당·시세. AI 없이 DART·KRX 만 부른다. 실패해도 분석은 그대로
+    if not mock and report.meta.ticker and (cfg.get("external") or {}).get("company", True):
+        try:
+            from .external import company
+            result["company"] = company.build(report.meta.ticker)
+            from .external import peers                         # 상장 경쟁사 비교: 업종 목록을 만들어 둔 뒤에만 (python -m tribunal.external.peers --index)
+            if peers.INDEX.exists():
+                result["company"]["peers"] = peers.build(report.meta.ticker)
+                company.fill_peers_from_industry(result["company"])
+        except Exception as e:                                  # noqa: BLE001 (참고 정보라 분석을 멈추지 않는다)
+            llm._log(f"[company] 기본 종목정보를 만들지 못했습니다: {type(e).__name__}")
     write_result(out / "result.json", result)
     if dashboard:                       # 대시보드 폴더에도 같은 파일과 원문 PDF를 둔다
         write_result(dashboard / "data" / "result.json", result)
@@ -277,6 +320,54 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
     if _sha(report_path) != before:
         raise RuntimeError("원본 리포트 파일이 바뀌었습니다. 있어서는 안 되는 일입니다.")
     return out
+
+
+def second_round(out: Path, extras: List[Objection], objections: List[Objection], case: dict, nc_all: dict,
+                 keys: List[str], mod_keys: List[str], cfg: dict, mock: bool, mock_dir: Optional[Path],
+                 document: Optional[str]) -> Dict[str, list]:
+    """배심원이 추가한 이의를 다른 배심원이 표결한다. 이의를 낸 사람은 자기 이의에 표결하지 않는다.
+    2차에서는 새 이의를 받지 않는다. 돌려주는 값: {배심원: [Vote...]} (2차 표가 없으면 빈 dict)
+    가짜 실행은 mock/juror2_<배심원>.json 이 있을 때만 한다."""
+    from . import modules
+    if not extras:
+        return {}
+    brief = [{"objection_id": o.objection_id, "claim_id": o.claim_id, "text": o.text} for o in objections]
+    out_votes: Dict[str, list] = {}
+    failed: Dict[str, str] = {}
+
+    def ask(k: str):
+        mine = [o for o in extras if o.objection_id != f"J-{k}"]
+        if not mine:
+            return k, None
+        if mock and not ((mock_dir or ROOT / "mock") / f"juror2_{k}.json").exists():
+            return k, None
+        payload = dict(case, round=2, number_checks=brief_checks(nc_all), earlier_objections=brief,
+                       objections=[o.model_dump(exclude={"removed_ids"}) for o in mine])
+        try:
+            res = _step(out, f"juror2_{k}", JurorOut,
+                        lambda: (llm.call(f"juror2_{k}", payload, JurorOut, cfg, mock, mock_dir) if mock else
+                                 llm.call(f"juror_{k}", payload, JurorOut, cfg, mock, mock_dir, document=document,
+                                          extra=modules.text_for(k, mod_keys))), mock)
+        except RuntimeError as e:
+            failed[k] = str(e)
+            return k, None
+        if res is None:
+            return k, None
+        ids = {o.objection_id for o in mine}
+        return k, [v for v in res.votes if v.objection_id in ids]   # 2차 표만. 새 이의는 받지 않는다
+
+    workers = max(1, min(len(keys), int(cfg.get("max_concurrent_calls", 2))))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for k, vs in ex.map(ask, keys):
+            if vs is not None:
+                out_votes[k] = vs
+    if failed:      # 2차가 실패해도 1차 결과는 살린다. 그 사람은 2차 기권
+        llm._log(f"[2차 표결] {', '.join(JUROR_NAMES[k] for k in failed)}의 호출이 실패해 기권으로 셉니다")
+    _dump(out / "juror_round2.json", {"objections": [o.objection_id for o in extras],
+                                      "votes": {JUROR_NAMES[k]: [v.model_dump() for v in vs] for k, vs in out_votes.items()},
+                                      "failed": {JUROR_NAMES[k]: e for k, e in failed.items()}})
+    llm._log(f"[2차 표결] 배심원 추가 이의 {len(extras)}개를 {len(out_votes)}명이 표결했습니다")
+    return out_votes
 
 
 def save_usage(out: Path) -> Optional[dict]:

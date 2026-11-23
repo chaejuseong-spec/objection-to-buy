@@ -3,18 +3,18 @@
 // 오른쪽 검토 패널
 import type { CodeFinding, EvidenceClaim, LibraryEntry, Result } from "@/lib/types";
 import { markTone } from "./document-view";
-import { Chevron, ClaimName, ClaimNumber, Collapsible, InfoTip, Mix, Verdict } from "./primitives";
-import { findObjection, IMPORTANCE_NOTE, numberSource, problems } from "./problems";
-import { Linked } from "./refs";
+import { Chevron, ClaimName, ClaimNumber, Collapsible, InfoTip, Verdict, VoteTally } from "./primitives";
+import { claimTarget, findObjection, IMPORTANCE_NOTE, numberSource, problems } from "./problems";
+import { JudgeText, Linked } from "./refs";
 import { evText, GRADE_TEXT, shownComputed, TONE, toneOf, toneVars } from "./tone";
-import { ACTION_TONE, checkGroup, claimNo, claimsByPage, JudgmentTimeline, type JournalEntry } from "./views";
+import { ACTION_TONE, checkGroup, claimNo, claimsByPage, DOUBT_HELP, ruleText, type JournalEntry } from "./views";
 import s from "./workspace.module.css";
 
 /* ───────── 요약 ───────── */
 
 /** 요약 화면의 오른쪽: 판정 한 줄과 가장 중요한 문제 3개. 가운데 화면의 숫자를 되풀이하지 않는다 */
 export function SummaryPanel({ result, onOpenDoc, onOpenRef, onAll }: {
-  result: Result; onOpenDoc: () => void; onOpenRef: (ref: string) => void; onAll: () => void;
+  result: Result; onOpenDoc: () => void; onOpenRef: (ref: string) => void; onAll?: () => void;     // onAll 없으면 '검토 과정 탭에서 자세히 보기'를 숨긴다
 }) {
   const { grade, run } = result;
   const gTone = toneOf(grade.value);
@@ -24,7 +24,7 @@ export function SummaryPanel({ result, onOpenDoc, onOpenRef, onAll }: {
       <div className={s.panelBlock} style={{ gap: 10 }}>
         <h2>이 리포트의 판정</h2>
         <p className={s.panelTitle} style={{ color: TONE[gTone].ink }}>{grade.value}</p>
-        <p className={s.panelText}>{GRADE_TEXT[grade.value] ?? ""}.</p>
+        <p className={s.panelText}>{GRADE_TEXT[grade.value] ?? ""}.{grade.holds ? ` 일부 판정 못 함 ${grade.holds}건.` : ""}</p>
       </div>
       <div className={s.panelBlock} style={{ gap: 2 }}>
         <h2 style={{ marginBottom: 6 }}>문제 목록 <span className={s.muted} style={{ fontWeight: 400 }}>{list.length}건, 중요도 순<InfoTip text={IMPORTANCE_NOTE} /></span></h2>
@@ -35,7 +35,7 @@ export function SummaryPanel({ result, onOpenDoc, onOpenRef, onAll }: {
             <small>{p.page ? `${p.page}쪽` : ""}</small>
           </button>
         ))}
-        {list.length > 0 && <button type="button" className={s.link} style={{ alignSelf: "flex-start", marginTop: 8 }} onClick={onAll}>문제 목록 탭에서 자세히 보기</button>}
+        {list.length > 0 && onAll && <button type="button" className={s.link} style={{ alignSelf: "flex-start", marginTop: 8 }} onClick={onAll}>검토 과정 탭에서 자세히 보기</button>}
       </div>
       {run.mock && (
         <div className={s.panelBlock}>
@@ -56,9 +56,11 @@ export function DetailPanel({ result, selected, checked, onToggleCheck, onStep, 
   onStep: (d: number) => void; onOpenRef?: (ref: string) => void; onSelect?: (ref: string) => void; position: string;
   canPrev?: boolean; canNext?: boolean;
 }) {
-  const claim = result.claims.find((c) => c.id === selected);
-  const check = result.numbers.results.find((x) => x.check_id === selected);
-  const objection = !claim && !check ? findObjection(result, selected) : undefined;
+  // 주장 패널은 없앴다(2026-11-20): 주장이 선택되면 그 주장의 가장 무거운 지적을 연다. 지적이 없는 주장만 짧은 안내
+  const sel = result.claims.some((c) => c.id === selected) ? claimTarget(result, selected) ?? selected : selected;
+  const claim = result.claims.find((c) => c.id === sel);
+  const check = result.numbers.results.find((x) => x.check_id === sel);
+  const objection = !claim && !check ? findObjection(result, sel) : undefined;
   const go = (ref: string) => (onSelect ?? onOpenRef)?.(ref);
 
   const nav = (
@@ -73,11 +75,16 @@ export function DetailPanel({ result, selected, checked, onToggleCheck, onStep, 
     const tone = toneOf(claim.verdict);
     const items = result.checklist.map((it, i) => ({ it, key: `c${i}` })).filter(({ it }) => it.claim_id === claim.id);
     const done = items.filter(({ key }) => checked[key]).length;
-    // 판정을 정한 이의: 주장 판정과 같은 판정 가운데 타당 표가 가장 많은 것 (표가 있는 이의만)
+    // 판정을 정한 이의: 주장 판정과 같은 판정 가운데 동의 표가 가장 많은 것 (표가 있는 이의만)
     const decisive = claim.objections.filter((o) => o.verdict === claim.verdict && o.votes.length > 0)
-      .sort((a, b) => b.tally["타당"] - a.tally["타당"])[0];
+      .sort((a, b) => b.tally["동의"] - a.tally["동의"])[0];
     // 이 주장에 걸린 문제: 배심원이 판정한 이의 + 근거 숫자의 불일치. 한 줄씩 보이고 누르면 그 문제가 열린다
+    // 결론 주장(목표주가 등)이 근거 주장을 따라 판정이 바뀐 경우: 그 근거 주장을 한 줄로 (누르면 그 주장이 열린다)
+    const dep = claim.dependency;
+    const depText = dep ? dep.from.map((id) => result.claims.find((c) => c.id === id)?.text ?? id).join(" / ") : "";
     const issues = [
+      ...(dep ? dep.from.map((id) => ({ id, verdict: dep.verdict, page: null,
+        text: `근거 주장 "${result.claims.find((c) => c.id === id)?.text ?? id}"이(가) 수정으로 판정돼, 이 결론도 ${dep.verdict}`, o: undefined })) : []),
       ...claim.objections.map((o) => ({ id: o.id, verdict: o.verdict, page: o.page ?? null, text: o.text, o })),
       ...(claim.code ?? []).map((f) => ({ id: f.check_id, verdict: f.verdict, page: null, text: `숫자: ${f.name}`, o: undefined })),
     ].sort((a, b) => (b.verdict === "수정" ? 1 : 0) - (a.verdict === "수정" ? 1 : 0));
@@ -92,22 +99,21 @@ export function DetailPanel({ result, selected, checked, onToggleCheck, onStep, 
             </div>
             {nav}
           </div>
+          <p className={s.quote}><span>{claim.text}</span></p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <span className={s.statusBadge}>{claim.verdict}</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: TONE[tone].ink }}>
-              {claim.verdict === "수정" ? "판단한 배심원 과반이 이의를 받아들임" : claim.verdict === "유지" ? "중대한 반론 없음" : "근거를 더 봐야 함"}
+              {dep && dep.verdict === claim.verdict && !claim.objections.some((o) => o.verdict === claim.verdict)
+                ? `근거 주장(${depText})이 수정이라 따라감`
+                : claim.verdict === "수정" ? "판단한 배심원 과반이 이의를 받아들임" : claim.verdict === "유지" ? "중대한 반론 없음" : "근거를 더 봐야 함"}
             </span>
           </div>
           {decisive && (
             // 주장의 판정은 걸린 이의 중 가장 무거운 판정을 따른다. 그 판정을 정한 이의의 배심원 표
-            <div className={s.tallyLine} title="이 주장의 판정을 정한 이의의 배심원 표">
-              <Mix label={`타당 ${decisive.tally["타당"]}, 확인 불가 ${decisive.tally["확인 불가"]}, 과장 ${decisive.tally["과장"]}`}
-                   parts={[{ tone: "red", value: decisive.tally["타당"] }, { tone: "orange", value: decisive.tally["확인 불가"] }, { tone: "green", value: decisive.tally["과장"] }]} />
-              <span>배심원 {result.logic.n_jurors}명: 타당 {decisive.tally["타당"]} · 과장 {decisive.tally["과장"]} · 확인 불가 {decisive.tally["확인 불가"]}
-                {claim.objections.length > 1 ? " (판정을 정한 이의 기준)" : ""}</span>
+            <div title="이 주장의 판정을 정한 이의의 배심원 표">
+              <VoteTally tally={decisive.tally} who={`배심원 ${result.logic.n_jurors}명 투표`} />
             </div>
           )}
-          <p className={s.quote}><span>{claim.text}</span></p>
           {onOpenRef && <button type="button" className={s.link} style={{ alignSelf: "flex-start" }} onClick={() => onOpenRef(claim.id)}>원문에서 위치 보기</button>}
         </div>
         <div className={s.panelBlock} style={{ gap: 2 }}>
@@ -138,7 +144,7 @@ export function DetailPanel({ result, selected, checked, onToggleCheck, onStep, 
         {claim.ruling && (
           <div className={s.panelBlock}>
             <h2>판사의 판정 근거</h2>
-            <p className={s.panelText}><Linked text={claim.ruling.reason} /></p>
+            <p className={s.panelText}><JudgeText text={claim.ruling.reason} /></p>
             <span className={s.muted} style={{ fontSize: 12 }}>
               투자의견 영향 <b style={{ color: TONE[tone].ink }}>{claim.ruling.impact}</b>{claim.ruling.fix_part ? `, 검토할 부분 ${claim.ruling.fix_part}` : ""}
             </span>
@@ -190,7 +196,6 @@ export function DetailPanel({ result, selected, checked, onToggleCheck, onStep, 
               {src.url && <div><dt>원문</dt><dd><a href={src.url} target="_blank" rel="noreferrer" className={s.link}>{src.url.includes("dart.fss") ? "DART에서 공시 원문 보기" : src.url.includes("ecos") ? "한국은행 ECOS 열기" : src.url.includes("kosis") ? "KOSIS 통계표 열기" : "KRX 정보데이터시스템 열기"}</a></dd></div>}
             </dl>
           )}
-          <span className={s.muted} style={{ fontSize: 12 }}>{src ? "공식 데이터와 코드가 대조한 결과입니다. AI 의견이 들어가지 않습니다." : "코드가 계산한 결과입니다. AI 의견이 들어가지 않습니다."}</span>
           {onOpenRef && <button type="button" className={s.link} style={{ alignSelf: "flex-start" }} onClick={() => onOpenRef(check.check_id)}>원문에서 위치 보기</button>}
         </div>
       </div>
@@ -198,26 +203,70 @@ export function DetailPanel({ result, selected, checked, onToggleCheck, onStep, 
   }
 
   if (objection) {
-    const tone = toneOf(objection.verdict);
+    // 주장 패널과 같은 양식: 머리 → 판정과 표 → 원문 → 지적 내용 → 배심원 표와 이유 → 판정 근거
+    const o = objection;
+    const tone = toneOf(o.verdict);
+    const core = result.claims.find((c) => c.id === o.claim_id && c.is_core);
+    const ruling = o.ruling ?? result.claims.find((c) => c.id === o.claim_id)?.ruling ?? null;   // 예전 결과: 주장의 판사 글
+    const short = o.verdict_reason || (o.verdict === "수정" ? "판단한 배심원 과반이 이의를 받아들임" : o.verdict === "유지" ? "중대한 반론 없음" : "근거를 더 봐야 함");
     return (
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div className={s.panelBlock} style={toneVars(tone)}>
           <div className={s.claimHead}>
             <span className={s.claimNo} data-size="lg" style={{ background: TONE[tone].ink }} aria-hidden="true">!</span>
             <div>
-              <strong>원문에서 짚은 지적</strong>
-              <small>{position}{objection.page ? `, 원문 ${objection.page}쪽` : ""}</small>
+              <strong>지적{core && <span className={s.coreTag} title={`이 지적이 걸린 핵심 주장: ${core.text}\n핵심 주장에 수정이 있으면 리포트 등급이 '재검토 필요'가 됩니다.`}>핵심 주장</span>}</strong>
+              <small>{position}{o.page ? `, 원문 ${o.page}쪽` : ""}</small>
             </div>
             {nav}
           </div>
-          {objection.claim_id
-            ? <button type="button" className={s.link} style={{ alignSelf: "flex-start", fontSize: 12 }} onClick={() => go(objection.claim_id!)}>관련 주장: 주장 {claimNo(result.claims, objection.claim_id)} 보기</button>
-            : <span className={s.muted} style={{ fontSize: 12 }}>추출된 주장과 묶이지 않은 지적입니다.</span>}
-          {onOpenRef && objection.quote_found && <button type="button" className={s.link} style={{ alignSelf: "flex-start" }} onClick={() => onOpenRef(objection.id)}>원문에서 위치 보기</button>}
+          {o.quote
+            ? <p className={s.quote}>
+                {o.quote_ctx?.before && <><span className={s.ctxSoft}>{o.quote_ctx.before}</span> </>}
+                <span>{o.quote_ctx?.quote ?? o.quote}</span>
+                {o.quote_ctx?.after && <> <span className={s.ctxSoft}>{o.quote_ctx.after}</span></>}
+              </p>
+            : <span className={s.muted} style={{ fontSize: 12 }}>원문 인용 없이 근거 숫자로 제기한 지적입니다.</span>}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <span className={s.statusBadge}>{o.verdict}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: TONE[tone].ink }}>{short}{o.importance && o.verdict !== "유지" ? ` · 중요도 ${o.importance}` : ""}</span>
+            <InfoTip text={ruleText(o, result.logic.n_jurors, result.logic.majority)} />
+          </div>
+          {o.votes.length > 0 && <VoteTally tally={o.tally} who={o.round2 ? `2차 표결 ${o.votes.length}명 투표` : `배심원 ${result.logic.n_jurors}명 투표`} />}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {onOpenRef && o.quote_found && <button type="button" className={s.link} onClick={() => onOpenRef(o.id)}>원문에서 위치 보기</button>}
+          </div>
         </div>
-        <div className={s.panelBlock}>
-          <JudgmentTimeline o={objection} nJurors={result.logic.n_jurors} majority={result.logic.majority} />
+        <div className={s.panelBlock} style={{ gap: 6 }}>
+          <h2 style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {o.who === "검사" ? "리스크 검토자" : o.who}의 지적
+            <span className={s.typeTag} title={DOUBT_HELP[o.doubt_type]}>{o.doubt_type}{o.kind === "사실 오류" ? " · 사실 오류" : ""}</span>
+          </h2>
+          <p className={s.panelText} style={{ textAlign: "justify" }}><Linked text={o.text} /></p>
+          {o.evidence.length > 0 && (
+            <p className={s.muted} style={{ fontSize: 12, margin: 0 }}>이의 근거: {o.evidence.map((e) => `${e.label}${e.page ? ` (${e.page}쪽)` : ""}`).join(", ")}</p>
+          )}
+          {o.votes.length > 0 && (
+            <ul className={s.miniVotes} aria-label="배심원 판정 근거">
+              {o.votes.map((v) => (
+                <li key={v.juror}>
+                  <span>{v.juror}</span>
+                  <span><Verdict label={v.vote} />{v.importance ? <small className={s.muted}> 중요도 {v.importance}</small> : null}</span>
+                  <span>{v.view && <span className={s.voteView}><Linked text={v.view} /></span>}<Linked text={v.reason} /></span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+        {ruling && (
+          <div className={s.panelBlock}>
+            <h2>판사의 판정 근거{!o.ruling && <span className={s.muted} style={{ fontWeight: 400 }}> (이 지적이 걸린 주장 전체에 대한 설명)</span>}</h2>
+            <p className={s.panelText}><JudgeText text={ruling.reason} /></p>
+            <span className={s.muted} style={{ fontSize: 12 }}>
+              투자의견 영향 <b style={{ color: TONE[tone].ink }}>{ruling.impact}</b>{ruling.fix_part ? `, 검토할 부분 ${ruling.fix_part}` : ""}
+            </span>
+          </div>
+        )}
       </div>
     );
   }
@@ -225,7 +274,7 @@ export function DetailPanel({ result, selected, checked, onToggleCheck, onStep, 
   return (
     <div className={s.panelBlock}>
       <h2>검토 패널</h2>
-      <p className={s.panelText}>원문의 칠해진 곳이나 목록의 주장을 누르면 이의, 배심원 표, 판사의 글이 여기에 열립니다.</p>
+      <p className={s.panelText}>원문의 칠해진 곳이나 문제 목록을 누르면 지적, 배심원 표, 판사의 글이 여기에 열립니다.</p>
     </div>
   );
 }
@@ -388,7 +437,7 @@ export function EntryPanel({ entry }: { entry: LibraryEntry }) {
         <h2>분석 순서</h2>
         <ol className={s.steps}>
           <li>추출 담당이 원문에서 주장과 숫자를 뽑고, 코드가 원문과 글자 그대로 대조합니다</li>
-          <li>리스크 검토자가 주장마다 이의를 냅니다</li>
+          <li>리스크 검토자가 원문 전체에서 이의를 냅니다</li>
           <li>배심원 5명이 서로 보지 않고 투표합니다</li>
           <li>코드가 표를 세고, 판사가 판결문을 씁니다</li>
         </ol>

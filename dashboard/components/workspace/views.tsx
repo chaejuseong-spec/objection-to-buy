@@ -1,13 +1,31 @@
 "use client";
 
-// 분석이 끝난 리포트의 가운데 화면: 요약, 반대신문 과정, 나의 판단 기록
-import type { FormEvent, ReactNode } from "react";
+// 분석이 끝난 리포트의 가운데 화면: 요약, 검토 과정(문제 목록, 이의와 배심원 표), 나의 판단 기록
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Claim, Objection, Result } from "@/lib/types";
-import { ClaimName, ClaimNumber, InfoTip, Mix, Verdict } from "./primitives";
+import { Chevron, InfoTip, Verdict, VoteTally } from "./primitives";
 import { IMPORTANCE_NOTE, keptObjections, numberSource, problems, unverifiedNumbers, type Problem } from "./problems";
 import { Linked } from "./refs";
 import { GRADE_TEXT, shownComputed, TONE, toneOf, toneVars, unitAfter } from "./tone";
+import { NumbersTable } from "./numbers-table";
 import s from "./workspace.module.css";
+
+/** 배심원이 추가한 이의인가 (id 가 J- 로 시작) */
+const isAdded = (o: Objection) => o.id.startsWith("J-");
+
+/** 이의의 원문 인용. 코드가 붙인 문장 전체(quote_ctx)가 있으면 문장 전체를 보여 주고 리스크 검토자가 짚은 구절만 굵게 */
+export function QuoteBlock({ o }: { o: Objection }) {
+  const c = o.quote_ctx;
+  const page = c?.page ?? o.page;
+  return (
+    <blockquote className={s.objQuote}>
+      {c
+        ? <>“{c.before && <><span className={s.ctxSoft}>{c.before}</span> </>}<span className={s.ctxHit}>{c.quote}</span>{c.after && <> <span className={s.ctxSoft}>{c.after}</span></>}”</>
+        : <>“{o.quote}”</>}
+      <small>{page ? ` 원문 ${page}쪽` : ""}{o.quote_found ? "" : ", 원문에서 찾지 못함"}</small>
+    </blockquote>
+  );
+}
 
 export const num = (v?: string | null) => {
   const n = Number(String(v ?? "").replace(/[^0-9.-]/g, ""));
@@ -26,9 +44,9 @@ export const claimNo = (claims: Claim[], id: string) => claimsByPage(claims).fin
 /** 요약 문장: 문제가 있는 것만 말한다 (유지된 주장, 0개인 항목은 빼고) */
 // 주장 목록 설명 말풍선 (배열의 한 칸이 한 줄)
 const CLAIMS_NOTE = [
-  "원문 쪽 순서로 놓았습니다.",
-  "주장을 누르면 원문 위치와 함께",
-  "그 주장에 걸린 이의와 배심원 의견이 열립니다.",
+  "투자의견을 떠받치는 핵심 주장입니다(원문 쪽 순서).",
+  "핵심 주장에 수정이 있으면 리포트 등급이 '재검토 필요'가 됩니다.",
+  "누르면 그 주장에 걸린 가장 무거운 지적이 열립니다.",
 ].join("\n");
 
 /** '투자 전에 직접 확인할 사항' 항목의 종류: 이의에서 나온 것은 사실 오류/해석 차이, 숫자 검증에서 나온 것은 수치 불일치 */
@@ -44,9 +62,9 @@ export const checkGroup = (it: { why: string; type: string }): "logic" | "number
 function summaryLines(nClaims: number, nFix: number, nCheck: number, nProblems: number): string[] {
   const parts = [nFix ? `${nFix}개는 수정` : "", nCheck ? `${nCheck}개는 확인` : ""].filter(Boolean);
   const first = parts.length
-    ? `전체 주장 ${nClaims}개 중 ${parts.join(", ")}이 필요합니다.`
-    : `전체 주장 ${nClaims}개 모두 큰 문제가 없습니다.`;
-  return nProblems ? [first, `각 주장에 제시된 근거를 검토한 결과, 총 ${nProblems}건의 문제점이 발견되었습니다.`] : [first];
+    ? `핵심 주장 ${nClaims}개 중 ${parts.join(", ")}이 필요합니다.`
+    : `핵심 주장 ${nClaims}개 모두 큰 문제가 없습니다.`;
+  return nProblems ? [first, `리포트 전체에서 수정하거나 확인할 지적이 ${nProblems}건 나왔습니다.`] : [first];
 }
 
 function PageLinks({ pages, onPage }: { pages: number[]; onPage: (p: number) => void }) {
@@ -63,15 +81,16 @@ export function SummaryView({ result, onOpenClaim, onPage, checklist }: {
   result: Result; onOpenClaim: (id: string) => void; onPage: (p: number) => void;
   checklist?: ReactNode;      // 투자 전에 직접 확인할 사항 (맨 아래)
 }) {
-  const { meta, grade, claims, summary, logic } = result;
+  const { meta, grade, claims, summary } = result;
   const gTone = toneOf(grade.value);
   const up = upside(meta);
   const nProblems = problems(result).length;
+  const core = claimsByPage(claims).filter((c) => c.is_core);
   return (
     <article className={s.summary}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h2 className={s.summaryTitle}>{meta.title}</h2>
-        <span className={s.muted}>{meta.report_date} 발간, 가격 기준일 {meta.snapshot_date}, 밸류에이션 {meta.valuation_method}</span>
+        <span className={s.muted}>{meta.report_date} 발간, 가격 기준일 {meta.snapshot_date}</span>
       </div>
 
       <dl className={s.keyFigures}>
@@ -96,25 +115,23 @@ export function SummaryView({ result, onOpenClaim, onPage, checklist }: {
         <h3>교차검증 결과</h3>
         <div className={s.gradeLine}>
           <strong>{grade.value}</strong>
-          <span style={{ fontSize: 14 }}>{GRADE_TEXT[grade.value] ?? ""}</span>
+          <span style={{ fontSize: 14 }}>{GRADE_TEXT[grade.value] ?? ""}{grade.holds ? ` (일부 판정 못 함 ${grade.holds}건)` : ""}</span>
         </div>
-        <p>{summaryLines(logic.n_claims, logic.count["수정"], logic.count["확인 필요"], nProblems).map((l, i) => <span key={i} style={{ display: "block" }}>{l}</span>)}</p>
-        <h4 className={s.listHead}>
-          <span>리포트의 주요 주장과 판정<InfoTip text={CLAIMS_NOTE} /></span>
-        </h4>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {claimsByPage(claims).map((c, i) => (
-            <button key={c.id} type="button" className={s.claimRow} onClick={() => onOpenClaim(c.id)}>
-              <ClaimNumber n={i + 1} tone={toneOf(c.verdict)} />
-              <span>
-                <strong style={{ fontSize: 13.5 }}><ClaimName n={i + 1} core={c.is_core} /><span className={s.muted} style={{ fontWeight: 400, marginLeft: 8, fontSize: 12 }}>원문 {c.page}쪽, 이의 {c.objections.length}건</span></strong>
-                <small>{c.text}</small>
-              </span>
-              {/* 판정만 둔다. 틀린 숫자는 문제 목록과 오른쪽 패널에 따로 나오고 판정에도 이미 반영된다 */}
-              <Verdict label={c.verdict} />
-            </button>
-          ))}
-        </div>
+        <p>{summaryLines(core.length, core.filter((c) => c.verdict === "수정").length, core.filter((c) => c.verdict === "확인 필요").length, nProblems).map((l, i) => <span key={i} style={{ display: "block" }}>{l}</span>)}</p>
+        {core.length > 0 && <>
+          <h4 className={s.listHead}>
+            <span>핵심 주장 판정<InfoTip text={CLAIMS_NOTE} /></span>
+          </h4>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {core.map((c) => (
+              <button key={c.id} type="button" className={s.coreRow} style={toneVars(toneOf(c.verdict))} onClick={() => onOpenClaim(c.id)}>
+                <Verdict label={c.verdict} />
+                <span>{c.text}</span>
+                <small>{c.page ? `${c.page}쪽` : ""}</small>
+              </button>
+            ))}
+          </div>
+        </>}
       </section>
 
       {checklist}
@@ -168,145 +185,158 @@ export function ChecklistBlock({ result, checked, onToggleCheck, onOpen }: {
   );
 }
 
-/* ───────── 반대신문 과정 ───────── */
+/* ───────── 문제 목록 (이의와 배심원 표) ───────── */
 
-const DOUBT_HELP: Record<string, string> = {
+export const DOUBT_HELP: Record<string, string> = {
   "숫자의 기준": "같은 이름의 숫자라도 기준(연결/별도, 평균/기말 등)이 달라 비교가 맞지 않을 수 있다는 지적",
   "기간 선택": "유리한 기간만 골라 성장률·수익률을 계산했을 수 있다는 지적",
   "가정의 근거": "전망에 쓴 가정이 뒷받침되지 않는다는 지적",
   "논리 연결": "근거에서 결론으로 가는 연결이 약하다는 지적",
-  "빠진 위험": "결론을 뒤집을 수 있는 위험을 다루지 않았다는 지적",
+  "위험 누락": "결론을 뒤집을 수 있는 위험을 다루지 않았다는 지적",
   "근거의 독립성": "여러 근거가 사실은 같은 출처·같은 가정에서 나왔다는 지적",
 };
 
 /** 이의 하나: 원문 인용 -> 지적 -> 배심원 표 한 줄 -> 배심원별 이유 */
-export function ObjectionView({ o, nJurors }: { o: Objection; nJurors: number }) {
+export function ObjectionView({ o, nJurors, inRow }: { o: Objection; nJurors: number; inRow?: boolean }) {
   const t = o.tally;
   return (
     <div className={s.objection}>
       <div className={s.objMeta}>
-        <Verdict label={o.verdict} strong />
-        <strong>{o.who === "검사" ? "리스크 검토자" : o.who}</strong>
-        <span title={DOUBT_HELP[o.doubt_type]}>{o.doubt_type}</span>
-        {o.kind === "사실 오류" && <span>사실 오류</span>}
-        {o.split && <span className={s.splitTag} title="판단한 표(타당·과장) 가운데 두 쪽 차이가 1표 이내입니다">배심원 의견 갈림</span>}
+        {!inRow && <Verdict label={o.verdict} strong />}
+        <strong>{o.who === "검사" ? "리스크 검토자" : o.who}의 지적</strong>
+        {!inRow && <span className={s.typeTag} title={DOUBT_HELP[o.doubt_type]}>{o.doubt_type}{o.kind === "사실 오류" ? " · 사실 오류" : ""}</span>}
+        {o.split && <span className={s.splitTag} title="판단한 표(동의·비동의) 가운데 두 쪽 차이가 1표 이내입니다">배심원 의견 갈림</span>}
+        {o.verdict === "유지" && o.verdict_reason && <span className={s.splitTag} title={o.verdict_reason === "경미한 지적" ? "배심원 과반이 이의에 동의했지만 결론에 미치는 영향(중요도)이 작다고 봤습니다" : "판단한 배심원 과반이 이의에 동의하지 않았습니다"}>{o.verdict_reason}</span>}
+        {o.importance && o.verdict !== "유지" && <span className={s.splitTag} title="동의한 배심원 다수가 매긴 중요도">중요도 {o.importance}</span>}
+        {o.importance_split && <span className={s.splitTag} title="동의한 배심원 가운데 중요도를 상과 하로 본 사람이 함께 있습니다">중요도 의견 갈림</span>}
+        {isAdded(o) && <span className={s.splitTag} title="리스크 검토자가 놓친 것을 배심원이 찾아 추가한 이의입니다. 이의를 낸 배심원을 뺀 나머지가 표결합니다">배심원이 새로 찾은 문제</span>}
       </div>
-      {o.quote && (
-        <blockquote className={s.objQuote}>
-          “{o.quote}”<small>{o.page ? ` 원문 ${o.page}쪽` : ""}{o.quote_found ? "" : ", 원문에서 찾지 못함"}</small>
-        </blockquote>
-      )}
+      {o.quote && <QuoteBlock o={o} />}
       <p><Linked text={o.text} /></p>
       {o.evidence.length > 0 && (
-        <p className={s.evidence}>반대 근거: {o.evidence.map((e) => `${e.label}${e.page ? ` (${e.page}쪽)` : ""}`).join(", ")}</p>
+        <p className={s.evidence}>이의 근거: {o.evidence.map((e) => `${e.label}${e.page ? ` (${e.page}쪽)` : ""}`).join(", ")}</p>
       )}
       {o.votes.length > 0 ? (
         <>
-          <div className={s.tallyLine}>
-            <Mix label={`타당 ${t["타당"]}, 확인 불가 ${t["확인 불가"]}, 과장 ${t["과장"]}`}
-                 parts={[{ tone: "red", value: t["타당"] }, { tone: "orange", value: t["확인 불가"] }, { tone: "green", value: t["과장"] }]} />
-            <span>배심원 {nJurors}명: 타당 {t["타당"]} · 과장 {t["과장"]} · 확인 불가 {t["확인 불가"]}{t["기권"] ? ` · 기권 ${t["기권"]}` : ""}</span>
-          </div>
+          <VoteTally tally={t} who={o.round2 ? `2차 표결 ${o.votes.length}명 투표(이의를 낸 배심원 제외)` : `배심원 ${nJurors}명 투표`} />
           <ul className={s.votes}>
             {o.votes.map((v) => (
               <li key={v.juror}>
                 <span>{v.juror}</span>
-                <Verdict label={v.vote} />
+                <span><Verdict label={v.vote} />{v.importance ? <small className={s.muted}> 중요도 {v.importance}</small> : null}</span>
                 <span>{v.view && <span className={s.voteView}><Linked text={v.view} /></span>}<Linked text={v.reason} /></span>
               </li>
             ))}
           </ul>
         </>
       ) : (
-        <span className={s.muted} style={{ fontSize: 12 }}>배심원이 추가한 이의라 표가 없습니다. 규칙에 따라 확인 필요까지만 올라갑니다.</span>
+        <span className={s.muted} style={{ fontSize: 12 }}>배심원이 추가한 이의인데 2차 표결 기록이 없습니다(예전 분석). 규칙에 따라 확인 필요까지만 올라갑니다.</span>
       )}
     </div>
   );
 }
 
-/** 문제 하나 (논리 또는 숫자) */
-function ProblemRow({ p, result, active, onSelect, onOpenRef, onPage }: {
-  p: Problem; result: Result; active: boolean; onSelect: (id: string) => void; onOpenRef: (id: string) => void; onPage: (n: number) => void;
+/** 문제 하나 (논리 또는 숫자): 처음엔 한 줄, 누르면 그 자리에서 펼친다 (2026-11-21 검토 과정 탭 C안) */
+function ProblemRow({ p, result, open, onToggle, onOpenRef, onPage }: {
+  p: Problem; result: Result; open: boolean; onToggle: (id: string) => void; onOpenRef: (id: string) => void; onPage: (n: number) => void;
 }) {
-  const claimLink = (cid: string) => (
-    <button key={cid} type="button" onClick={(e) => { e.stopPropagation(); onSelect(cid); }}>주장 {claimNo(result.claims, cid)}</button>
-  );
-  // 카드를 누르면 오른쪽 패널에 열린다 (안의 버튼·링크는 각자 동작)
-  const pick = (e: React.MouseEvent) => { if (!(e.target as HTMLElement).closest("button, a, summary")) onSelect(p.id); };
-  if (p.kind === "number") {
-    const x = p.x;
-    return (
-      <div className={`${s.objection} ${s.problemCard}`} data-active={active || undefined} onClick={pick}>
-        <div className={s.objMeta}>
-          <strong>숫자</strong>
-          <span>{numberSource(x)}</span>
-          <Verdict label={x.status} strong />
-          <span className={s.pageLinks} style={{ margin: 0 }}>{x.pages.map((n) => <button key={n} type="button" onClick={() => onPage(n)}>{n}쪽</button>)}</span>
-        </div>
-        <p title={x.check_id}>{x.name}</p>
-        <p className={s.evidence}>
-          리포트 {String(x.stated ?? "")}
-          {x.computed !== null ? ` → ${numberSource(x) === "다시 계산" ? "다시 계산" : "공식 값"} ${shownComputed(x.computed)}` : ""}
-          {x.diff_pct !== null ? ` (차이 ${x.diff_pct}%)` : ""}
-        </p>
-        {x.reason && <span className={s.muted} style={{ fontSize: 12 }}>{x.reason}</span>}
-        {p.claimIds.length > 0 && <span className={s.pageLinks} style={{ margin: 0 }}>이 숫자를 쓴 주장: {p.claimIds.map(claimLink)}</span>}
-        <button type="button" className={s.link} style={{ alignSelf: "flex-start" }} onClick={() => onOpenRef(x.check_id)}>원문에서 위치 보기</button>
-      </div>
-    );
-  }
+  const core = p.kind === "logic" && result.claims.some((c) => c.id === p.claimId && c.is_core);
+  const head = p.kind === "number"
+    ? <><span className={s.typeTag}>숫자 · {numberSource(p.x)}</span><span className={s.rowText}>{p.x.name}</span></>
+    : <>
+        {core && <span className={s.coreTag} style={{ marginLeft: 0 }}>핵심 주장</span>}
+        <span className={s.typeTag} title={DOUBT_HELP[p.o.doubt_type]}>{p.o.doubt_type}{p.o.kind === "사실 오류" ? " · 사실 오류" : ""}</span>
+        <span className={s.rowText}><Linked text={p.o.text} /></span>
+      </>;
+  const ruling = p.kind === "logic" ? (p.o.ruling ?? result.claims.find((c) => c.id === p.claimId)?.ruling ?? null) : null;
   return (
-    <div className={s.problemCard} data-active={active || undefined} onClick={pick}>
-      <ObjectionView o={p.o} nJurors={result.logic.n_jurors} />
-      <span className={s.pageLinks} style={{ margin: "0 0 0 2px" }}>
-        {p.claimId ? <>관련 주장: {claimLink(p.claimId)}</> : <span className={s.muted}>추출된 주장과 묶이지 않은 지적</span>}
-        {p.o.quote_found && <button type="button" onClick={() => onOpenRef(p.o.id)}>원문에서 위치 보기</button>}
-      </span>
+    <div id={`row-${p.id}`} className={s.problemRow} data-open={open || undefined}>
+      <button type="button" className={s.problemHead} style={toneVars(toneOf(p.verdict))} aria-expanded={open} onClick={() => onToggle(p.id)}>
+        <Chevron size={9} />
+        <Verdict label={p.kind === "number" ? p.x.status : p.verdict} strong />
+        <small>{p.page ? `${p.page}쪽` : ""}</small>
+        <span className={s.problemHeadText}>{head}</span>
+      </button>
+      {open && (
+        <div className={s.problemBody}>
+          {p.kind === "number" ? (
+            <>
+              <p className={s.evidence}>
+                리포트 {String(p.x.stated ?? "")}
+                {p.x.computed !== null ? ` → ${numberSource(p.x) === "다시 계산" ? "다시 계산" : "공식 값"} ${shownComputed(p.x.computed)}` : ""}
+                {p.x.diff_pct !== null ? ` (차이 ${p.x.diff_pct}%)` : ""}
+              </p>
+              {p.x.reason && <span className={s.muted} style={{ fontSize: 12 }}>{p.x.reason}</span>}
+              <span className={s.pageLinks} style={{ margin: 0 }}>{p.x.pages.map((n) => <button key={n} type="button" onClick={() => onPage(n)}>원문 {n}쪽</button>)}</span>
+            </>
+          ) : (
+            <>
+              <ObjectionView o={p.o} nJurors={result.logic.n_jurors} inRow />
+              {ruling && (
+                <p className={s.ruling}>
+                  <span>판사{!p.o.ruling ? " (이 지적이 걸린 주장 전체에 대한 설명)" : ""} </span><Linked text={ruling.reason} />
+                  <span> 투자의견 영향 {ruling.impact}{ruling.fix_part ? `, 검토할 부분 ${ruling.fix_part}` : ""}</span>
+                </p>
+              )}
+              {p.o.quote_found && <button type="button" className={s.link} style={{ alignSelf: "flex-start" }} onClick={() => onOpenRef(p.o.id)}>원문에서 위치 보기</button>}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-export function RecordsView({ result, selected, onSelect, onOpenClaim, onPage }: {
+export function RecordsView({ result, selected, onSelect, onOpenClaim, onPage, onCheck }: {
   result: Result; selected: string | null; onSelect: (id: string) => void; onOpenClaim: (id: string) => void; onPage: (p: number) => void;
+  onCheck: (ref: string) => void;
 }) {
-  const { claims, numbers, logic, extraction, rows } = result;
+  const { numbers, logic } = result;
   const list = problems(result);
   const nNum = list.filter((p) => p.kind === "number").length;
-  const major = list.filter((p) => p.verdict === "수정" || p.verdict === "불일치");   // 펼쳐 둘 것
-  const minor = list.filter((p) => !major.includes(p));                              // 확인 필요·판정 보류: 접어 둔다
   const kept = keptObjections(result);
   const unverified = unverifiedNumbers(result);
+  // 펼친 줄: 직접 연 것 + 오른쪽 요약에서 고른 것(selected). 고른 것을 접으면 접힌 채로 둔다
+  const [opened, setOpened] = useState<Set<string>>(() => new Set());
+  const [closed, setClosed] = useState<Set<string>>(() => new Set());
+  const isOpen = (id: string) => opened.has(id) || (id === selected && !closed.has(id));
+  const toggle = (id: string) => {
+    const now = isOpen(id);
+    setOpened((m) => { const n = new Set(m); if (now) n.delete(id); else n.add(id); return n; });
+    setClosed((m) => { const n = new Set(m); if (now) n.add(id); else n.delete(id); return n; });
+    if (!now) onSelect(id);
+  };
+  useEffect(() => {                   // 오른쪽 요약에서 고르면 그 줄로 옮겨 간다
+    if (selected) document.getElementById(`row-${selected}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected]);
   const row = (p: Problem) => (
-    <ProblemRow key={p.id} p={p} result={result} active={selected === p.id} onSelect={onSelect} onOpenRef={onOpenClaim} onPage={onPage} />
+    <ProblemRow key={p.id} p={p} result={result} open={isOpen(p.id)} onToggle={toggle} onOpenRef={onOpenClaim} onPage={onPage} />
   );
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 40, maxWidth: 1000 }}>
       <section className={s.block}>
-        <div className={s.sectionHead}>
-          <h3>문제 목록<small>{list.length}건 (숫자 {nNum}, 논리 {list.length - nNum}), 중요도 순<InfoTip text={IMPORTANCE_NOTE} /></small></h3>
-        </div>
-        <div className={s.problemList}>
-          {list.length === 0 && <p className={s.muted} style={{ margin: 0, fontSize: 13 }}>문제가 발견되지 않았습니다.</p>}
-          {major.map(row)}
-          {minor.length > 0 && (
-            <details className={s.problemGroup}>
-              <summary>확인 필요 <span className={s.muted} style={{ fontWeight: 400 }}>{minor.length}건, 배심원 판단이 갈렸거나 판단한 배심원이 적어 근거를 더 봐야 하는 지적</span></summary>
-              <div className={s.problemList} style={{ borderTop: 0 }}>{minor.map(row)}</div>
-            </details>
-          )}
-        </div>
-        <p className={s.foot}>
-          숫자 문제는 코드가 공식 데이터·계산으로 확인한 것이고, 논리 문제는 리스크 검토자의 이의를 배심원 {logic.n_jurors}명이 투표로 판정한 것입니다.
-          맞는 것으로 확인된 숫자 {numbers.count["일치"] ?? 0}건과 배심원이 받아들이지 않은 지적은 목록에 넣지 않았습니다.
-        </p>
+        <details open>
+          {/* 아래 '배심원이 받아들이지 않은 지적'과 같은 모양: 제목을 누르면 접고 편다 */}
+          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+            문제 목록 <span className={s.muted} style={{ fontWeight: 400 }}>{list.length}건 (숫자 {nNum}, 논리 {list.length - nNum}), 중요도 순</span><InfoTip text={IMPORTANCE_NOTE} />
+          </summary>
+          <div className={s.problemList} style={{ marginTop: 10 }}>
+            {list.length === 0 && <p className={s.muted} style={{ margin: 0, fontSize: 13 }}>문제가 발견되지 않았습니다.</p>}
+            {list.map(row)}
+          </div>
+          <p className={s.foot}>
+            숫자 문제는 코드가 공식 데이터·계산으로 확인한 것이고, 논리 문제는 리스크 검토자의 이의를 배심원 {logic.n_jurors}명이 투표로 판정한 것입니다.
+            맞는 것으로 확인된 숫자 {numbers.count["일치"] ?? 0}건과 배심원이 받아들이지 않은 지적은 목록에 넣지 않았습니다.
+          </p>
+        </details>
       </section>
 
       {kept.length > 0 && (
         <section className={s.block}>
           <details>
             <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 700 }}>배심원이 받아들이지 않은 지적 <span className={s.muted} style={{ fontWeight: 400 }}>{kept.length}건 (유지)</span></summary>
-            <div className={s.recordObjections} style={{ marginTop: 10 }}>
-              {kept.map((o) => <ObjectionView key={o.id} o={o} nJurors={logic.n_jurors} />)}
+            <div className={s.problemList} style={{ marginTop: 10 }}>
+              {kept.map((o) => row({ kind: "logic", id: o.id, verdict: o.verdict, page: o.page ?? null, o, claimId: o.claim_id }))}
             </div>
           </details>
         </section>
@@ -336,70 +366,7 @@ export function RecordsView({ result, selected, onSelect, onOpenClaim, onPage }:
         </section>
       )}
 
-      <section className={s.block}>
-        <details>
-        <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 700 }}>주장별로 보기 <span className={s.muted} style={{ fontWeight: 400 }}>주장 {claims.length}개, 판사의 판정 근거 포함</span></summary>
-        <div style={{ borderTop: "2px solid var(--ink)", marginTop: 10 }}>
-          {claimsByPage(claims).map((c, i) => (
-            <details key={c.id} className={s.recordClaim} open={c.is_core}>
-              <summary>
-                <ClaimNumber n={i + 1} tone={toneOf(c.verdict)} />
-                <span>{c.is_core && <span className={s.coreTag} style={{ marginLeft: 0, marginRight: 6 }}>핵심</span>}{c.text}</span>
-                <small>{c.objections.length ? `이의 ${c.objections.length}건` : "이의 없음"}</small>
-                <Verdict label={c.verdict} strong={c.verdict === "수정"} />
-              </summary>
-              <div className={s.recordBody}>
-                <blockquote>
-                  {c.text}
-                  <span className={s.pageLinks}>
-                    <button type="button" onClick={() => onOpenClaim(c.id)}>원문 {c.page}쪽에서 보기</button>
-                  </span>
-                </blockquote>
-                {c.objections.length === 0 && <p className={s.muted} style={{ margin: 0, fontSize: 13 }}>리스크 검토자가 이의를 내지 않았습니다.</p>}
-                <div className={s.recordObjections}>
-                  {c.objections.map((o) => <ObjectionView key={o.id} o={o} nJurors={logic.n_jurors} />)}
-                </div>
-                {c.ruling && (
-                  <p className={s.ruling}>
-                    <span>판사 </span>{c.ruling.reason}
-                    <span> 투자의견 영향 {c.ruling.impact}{c.ruling.fix_part ? `, 검토할 부분 ${c.ruling.fix_part}` : ""}</span>
-                  </p>
-                )}
-              </div>
-            </details>
-          ))}
-        </div>
-        </details>
-      </section>
-
-      {extraction && (
-        <section className={s.block} style={{ maxWidth: 720 }}>
-          <div className={s.sectionHead}><h3>원문 대조<small>AI가 뽑은 것을 코드가 원문과 한 글자씩 대조</small></h3></div>
-          <dl className={s.statGrid}>
-            {([["주장", extraction.claims], ["숫자", extraction.data_rows], ["검증 식", extraction.checks], ["표", extraction.tables], ["버린 것", extraction.dropped_total]] as const).map(([k, v]) => (
-              <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
-            ))}
-          </dl>
-          <p className={s.foot}>원문에서 글자 그대로 찾지 못한 주장, 숫자, 표의 줄은 버렸습니다.</p>
-        </section>
-      )}
-
-      <section className={s.block}>
-        <details>
-          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 700 }}>리포트에서 옮긴 숫자 <span className={s.muted} style={{ fontWeight: 400 }}>{rows.length}개</span></summary>
-          <div className={s.tableWrap} style={{ marginTop: 10 }}>
-            <table className={s.table} style={{ maxWidth: 820 }}>
-              <thead><tr><th>항목</th><th className={s.num}>값</th><th className={s.num}>쪽</th></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.rid}><td>{r.item}</td><td className={s.num}>{r.value}{unitAfter(r.value, r.unit)}</td>
-                    <td className={s.num}><span className={s.pageLinks} style={{ margin: 0 }}><button type="button" onClick={() => onPage(r.page)}>{r.page}</button></span></td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </section>
+      <NumbersTable result={result} onPage={onPage} onCheck={onCheck} />
     </div>
   );
 }
@@ -410,7 +377,7 @@ export type Agreement = "동의" | "부분 동의" | "비동의";
 export type Action = "매수" | "보유" | "매도";
 export interface JournalForm {
   initial: string; initialAction: Action | "";          // AI 결과를 보기 전의 생각과 행동
-  agreement: Agreement | ""; action: Action | "";        // 반대신문 결과를 본 뒤의 판단
+  agreement: Agreement | ""; action: Action | "";        // 검토 결과를 본 뒤의 판단
   final: string; reason: string; notes: string;
 }
 export interface JournalEntry { at: string; action: string; agreement: string; note: string; before?: string; changed?: boolean }
@@ -427,7 +394,7 @@ export const ACTION_TONE: Record<string, "green" | "orange" | "red"> = { 매수:
 export function JournalView({ name, opinion, target, form, saveLabel, saveColor, onChange, onSave, onReset, onExport, checklist }: {
   name: string; opinion: string; target: string; form: JournalForm; saveLabel: string; saveColor: string;
   onChange: <K extends keyof JournalForm>(k: K, v: JournalForm[K]) => void; onSave: () => void; onReset: () => void; onExport: () => void;
-  checklist?: ReactNode;      // 투자 전에 직접 확인할 사항 (반대신문 결과를 본 뒤의 판단 바로 앞)
+  checklist?: ReactNode;      // 투자 전에 직접 확인할 사항 (검토 결과를 본 뒤의 판단 바로 앞)
 }) {
   const submit = (e: FormEvent) => { e.preventDefault(); onSave(); };
   return (
@@ -439,13 +406,13 @@ export function JournalView({ name, opinion, target, form, saveLabel, saveColor,
 
       <div className={s.field}>
         <label htmlFor="j-initial">첫인상 (AI 결과를 보기 전)</label>
-        <span id="j-initial-help" className={s.help}>반론을 보기 전의 생각을 남겨 두면, 나중에 무엇이 판단을 바꿨는지 비교할 수 있습니다</span>
+        <span id="j-initial-help" className={s.help}>이의를 보기 전의 생각을 남겨 두면, 나중에 무엇이 판단을 바꿨는지 비교할 수 있습니다</span>
         <textarea id="j-initial" aria-describedby="j-initial-help" rows={3} value={form.initial} onChange={(e) => onChange("initial", e.target.value)} />
       </div>
 
       <fieldset className={s.fieldset}>
         <legend>AI 결과를 보기 전에는 무엇을 하려고 했나요</legend>
-        <div className={`${s.segmented} ${s.agree}`} style={{ maxWidth: 420 }}>
+        <div className={`${s.segmented} ${s.agree}`}>
           {ACTIONS.map((a) => (
             <button key={a.id} type="button" aria-pressed={form.initialAction === a.id} onClick={() => onChange("initialAction", form.initialAction === a.id ? "" : a.id)}>{a.id}</button>
           ))}
@@ -454,18 +421,18 @@ export function JournalView({ name, opinion, target, form, saveLabel, saveColor,
 
       {checklist}
 
-      <div className={s.fieldRow}>
-        <fieldset className={s.fieldset}>
+      {/* 두 질문은 한 줄씩 (2026-11-21 사용자 요청) */}
+      <fieldset className={s.fieldset}>
           <legend>투자의견에 동의하나요</legend>
           <div className={`${s.segmented} ${s.agree}`}>
             {AGREEMENTS.map((a) => (
               <button key={a} type="button" aria-pressed={form.agreement === a} onClick={() => onChange("agreement", form.agreement === a ? "" : a)}>{a}</button>
             ))}
           </div>
-        </fieldset>
-        <fieldset className={s.fieldset} style={{ flexGrow: 2 }}>
+      </fieldset>
+      <fieldset className={s.fieldset}>
           <legend>
-            반대신문 결과를 본 뒤, 무엇을 할 건가요
+            검토 결과를 본 뒤, 무엇을 할 건가요
             {form.initialAction && form.action && (
               <span style={{ marginLeft: 8, fontWeight: 600, color: form.initialAction === form.action ? "var(--muted)" : TONE.orange.ink }}>
                 {form.initialAction === form.action ? "처음 판단 그대로" : `처음 ${form.initialAction}에서 ${form.action}로 바뀜`}
@@ -481,23 +448,15 @@ export function JournalView({ name, opinion, target, form, saveLabel, saveColor,
               </button>
             ))}
           </div>
-        </fieldset>
-      </div>
+      </fieldset>
 
+      {/* 최종 판단과 결정한 이유를 한 칸으로 (2026-11-21 사용자 요청). 예전 기록의 '결정한 이유'는 이어 붙여 보여 주고, 고치면 한 칸에 합쳐진다 */}
       <div className={s.field}>
-        <label htmlFor="j-final">최종 판단</label>
-        <textarea id="j-final" rows={3} placeholder="반론까지 읽은 뒤의 결론을 한두 문장으로" value={form.final} onChange={(e) => onChange("final", e.target.value)} />
-      </div>
-
-      <div className={s.fieldRow}>
-        <div className={s.field}>
-          <label htmlFor="j-reason">결정한 이유</label>
-          <textarea id="j-reason" rows={5} placeholder="결정을 이끈 근거" value={form.reason} onChange={(e) => onChange("reason", e.target.value)} />
-        </div>
-        <div className={s.field}>
-          <label htmlFor="j-notes">반론을 검토하고 남길 메모</label>
-          <textarea id="j-notes" rows={5} placeholder="받아들인 반론, 넘긴 반론, 더 확인할 데이터" value={form.notes} onChange={(e) => onChange("notes", e.target.value)} />
-        </div>
+        <label htmlFor="j-final">최종 판단과 이유</label>
+        <span id="j-final-help" className={s.help}>이의까지 읽은 뒤의 결론과, 그 결정을 이끈 근거를 적습니다. 받아들인 지적과 그 이유, 넘긴 지적과 그 이유, 더 확인할 데이터를 함께 적으면 나중에 판단을 돌아보기 좋습니다</span>
+        <textarea id="j-final" aria-describedby="j-final-help" rows={7}
+                  placeholder="예: 매수 의견에 부분 동의. 할인 축소 근거가 '검토' 수준이라는 지적은 받아들임. 배당 성장률 지적은 영향이 작다고 보고 넘김. 3분기 지분 매각 공시를 더 확인할 것"
+                  value={[form.final, form.reason].filter(Boolean).join("\n\n")} onChange={(e) => onChange("final", e.target.value)} />
       </div>
 
       <div className={s.formFoot}>
@@ -514,22 +473,30 @@ export function JournalView({ name, opinion, target, form, saveLabel, saveColor,
 
 /** 이의 하나가 어떤 규칙으로 그 판정이 됐는지 (파이썬 rules.objection_verdict 와 같은 규칙을 글로 옮김) */
 export function ruleText(o: Objection, nJurors: number, majority: number): string {
+  if (o.votes.length === 0) return "배심원이 추가한 이의인데 2차 표결 기록이 없습니다(예전 분석). 규칙상 '확인 필요'까지만 올라갑니다.";
+  if (o.round2) {                // 배심원 추가 이의: 이의를 낸 배심원을 뺀 나머지가 같은 규칙으로 표결
+    nJurors = o.votes.length;
+    majority = Math.floor(nJurors / 2) + 1;
+  }
   const t = o.tally;
   const valid = nJurors - (t["기권"] ?? 0);
-  if (o.votes.length === 0) return "배심원이 추가한 이의라 표가 없습니다. 규칙상 '확인 필요'까지만 올라갑니다.";
   if (valid < majority) return `유효표 ${valid}표가 과반(${majority}표)에 못 미쳐 판정을 보류했습니다.`;
-  // '확인 불가'는 판단을 맡긴 표: 판단한 표(타당+과장) 3표 이상 가운데 과반으로 정한다
-  const judged = t["타당"] + t["과장"];
+  // '판단 불가'는 판단을 맡긴 표: 판단한 표(동의+비동의)가 3표 이상일 때 판정한다
+  const agree = t["동의"], dis = t["비동의"], judged = agree + dis;
   const need = Math.min(3, nJurors);
-  const unsure = t["확인 불가"] ? ` ('확인 불가' ${t["확인 불가"]}표는 판단을 맡긴 표라 세지 않습니다)` : "";
-  if (judged < need) return `판단한 표(타당·과장)가 ${judged}표로 ${need}표에 못 미쳐 '확인 필요'입니다. 사람이 직접 봐야 합니다.`;
-  if (t["타당"] * 2 > judged) {
-    return o.verdict === "수정"
-      ? `판단한 ${judged}표 가운데 타당이 ${t["타당"]}표로 과반이라 '수정'입니다.${unsure}`
-      : `타당이 과반이지만 근거(숫자나 원문 인용)가 확인되지 않아 '확인 필요'까지만 올렸습니다.`;
+  const unsure = t["판단 불가"] ? ` ('판단 불가' ${t["판단 불가"]}표는 판단을 맡긴 표라 세지 않습니다)` : "";
+  if (judged < need) return `판단한 표(동의·비동의)가 ${judged}표로 ${need}표에 못 미쳐 '확인 필요'입니다. 사람이 직접 봐야 합니다.`;
+  if (dis * 2 > judged) return `판단한 ${judged}표 가운데 비동의가 ${dis}표로 과반이라 '유지'(이의 불인정)입니다.${unsure}`;
+  if (agree * 2 > judged) {
+    const m = t["중요도"] ?? { 상: 0, 중: 0, 하: 0, 미확인: agree };
+    const imp = m["미확인"] === agree ? "예전 분석이라 중요도 기록이 없습니다" :
+      `동의한 배심원의 중요도는 상 ${m["상"]} · 중 ${m["중"]} · 하 ${m["하"]}${m["미확인"] ? ` · 미확인 ${m["미확인"]}` : ""}`;
+    if (o.verdict === "수정") return `판단한 ${judged}표 가운데 동의가 ${agree}표로 과반이고, ${imp}라 '수정'입니다.${unsure}`;
+    if (o.verdict === "유지") return `동의가 ${agree}표로 과반이지만 ${imp}로 '하'가 과반이라 '유지'(경미한 지적)입니다. 지적은 맞지만 결론에 미치는 영향이 작다는 뜻입니다.`;
+    if (o.verdict_reason === "근거가 확인되지 않음") return `동의가 과반이고 중요도도 높지만 근거(숫자나 원문 인용)가 확인되지 않아 '확인 필요'까지만 올렸습니다.`;
+    return `동의가 ${agree}표로 과반이지만 중요도 의견이 갈려(${imp}) '확인 필요'입니다.`;
   }
-  if (t["과장"] * 2 > judged) return `판단한 ${judged}표 가운데 과장이 ${t["과장"]}표로 과반이라 '유지'입니다. 지적은 맞을 수 있으나 결론에 미치는 영향이 작다는 뜻입니다.${unsure}`;
-  return `판단한 표가 타당 ${t["타당"]}표, 과장 ${t["과장"]}표로 같아 '확인 필요'입니다.`;
+  return `판단한 표가 동의 ${agree}표, 비동의 ${dis}표로 같아 '확인 필요'입니다.`;
 }
 
 export function JudgmentTimeline({ o, nJurors, majority }: { o: Objection; nJurors: number; majority: number }) {
@@ -539,29 +506,25 @@ export function JudgmentTimeline({ o, nJurors, majority }: { o: Objection; nJuro
       <li>
         <strong>원문</strong>
         {o.quote
-          ? <blockquote className={s.objQuote}>“{o.quote}”<small>{o.page ? ` 원문 ${o.page}쪽` : ""}{o.quote_found ? "" : ", 원문에서 찾지 못함"}</small></blockquote>
+          ? <QuoteBlock o={o} />
           : <span className={s.muted} style={{ fontSize: 12 }}>원문 인용 없이 근거 숫자로 제기한 이의입니다.</span>}
       </li>
       <li>
-        <strong>{o.who === "검사" ? "리스크 검토자" : o.who}의 이의 <span className={s.muted} style={{ fontWeight: 400 }} title={DOUBT_HELP[o.doubt_type]}>{o.doubt_type}{o.kind === "사실 오류" ? ", 사실 오류" : ""}</span></strong>
+        <strong>{o.who === "검사" ? "리스크 검토자" : o.who}의 지적 <span className={s.typeTag} style={{ marginLeft: 6 }} title={DOUBT_HELP[o.doubt_type]}>{o.doubt_type}{o.kind === "사실 오류" ? " · 사실 오류" : ""}</span></strong>
         <p><Linked text={o.text} /></p>
         {o.evidence.length > 0 && (
-          <p className={s.evidence}>반대 근거: {o.evidence.map((e) => `${e.label}${e.page ? ` (${e.page}쪽)` : ""}`).join(", ")}</p>
+          <p className={s.evidence}>이의 근거: {o.evidence.map((e) => `${e.label}${e.page ? ` (${e.page}쪽)` : ""}`).join(", ")}</p>
         )}
       </li>
       {o.votes.length > 0 && (
         <li>
-          <strong>배심원 {nJurors}명 투표 <span className={s.muted} style={{ fontWeight: 400 }}>서로의 표를 보지 않고 투표</span></strong>
-          <div className={s.tallyLine}>
-            <Mix label={`타당 ${t["타당"]}, 확인 불가 ${t["확인 불가"]}, 과장 ${t["과장"]}`}
-                 parts={[{ tone: "red", value: t["타당"] }, { tone: "orange", value: t["확인 불가"] }, { tone: "green", value: t["과장"] }]} />
-            <span>타당 {t["타당"]} · 과장 {t["과장"]} · 확인 불가 {t["확인 불가"]}{t["기권"] ? ` · 기권 ${t["기권"]}` : ""}</span>
-          </div>
+          <strong>{o.round2 ? `2차 표결 ${o.votes.length}명` : `배심원 ${nJurors}명 투표`} {o.round2 && <span className={s.muted} style={{ fontWeight: 400 }}>이의를 낸 배심원 제외</span>}</strong>
+          <VoteTally tally={t} />
           <ul className={s.votes}>
             {o.votes.map((v) => (
               <li key={v.juror}>
                 <span>{v.juror}</span>
-                <Verdict label={v.vote} />
+                <span><Verdict label={v.vote} />{v.importance ? <small className={s.muted}> 중요도 {v.importance}</small> : null}</span>
                 <span>{v.view && <span className={s.voteView}><Linked text={v.view} /></span>}<Linked text={v.reason} /></span>
               </li>
             ))}
@@ -570,7 +533,7 @@ export function JudgmentTimeline({ o, nJurors, majority }: { o: Objection; nJuro
       )}
       <li data-final="true" style={toneVars(toneOf(o.verdict))}>
         <strong>판정 <Verdict label={o.verdict} strong /></strong>
-        <p className={s.evidence}>{ruleText(o, nJurors, majority)} 판정은 AI가 아니라 정해진 규칙(코드)이 정합니다.</p>
+        <p className={s.evidence}>{ruleText(o, nJurors, majority)}</p>
       </li>
     </ol>
   );

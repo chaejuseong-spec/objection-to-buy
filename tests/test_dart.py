@@ -326,3 +326,119 @@ def test_연도도_없고_값도_크게_다르면_검증_불가():
 def test_현_배당성향은_직전_결산연도():
     got = div_run([row("R-1", "가상식품홀딩스 현 배당성향", "13.72%", "%"), row("R-2", "가상식품홀딩스 현 배당성향", "12.14%", "%")])
     assert got["R-1"]["status"] == "불일치" and got["R-2"]["status"] == "일치" and "'현재' 값" in got["R-2"]["reason"]
+
+
+# ---------- 보험사: 보험손익, CSM(XBRL 주석), 지급여력비율(공시 본문) (2026-11-21) ----------
+LIFE = {"corp_code": "00100003", "corp_name": "가상생명", "stock_code": "900030"}
+SEP = {"ConsolidatedAndSeparateFinancialStatementsAxis": "SeparateMember", "DisaggregationOfInsuranceContractsAxis": "InsuranceContractsIssuedMember"}
+CON = {**SEP, "ConsolidatedAndSeparateFinancialStatementsAxis": "ConsolidatedMember"}
+CSM = "ContractualServiceMargin"
+NEW = "IncreaseDecreaseThroughEffectsOfContractsInitiallyRecognisedInPeriodInsuranceContractsLiabilityAsset"
+AMORT = "InsuranceRevenueContractualServiceMarginRecognisedInProfitOrLossBecauseOfTransferOfServices"
+COMP = {"InsuranceContractsByComponentsAxis": "ContractualServiceMarginMember"}
+
+
+def fact(name, dims, value, instant=None, start=None, end=None):
+    f = {"name": name, "dims": dims, "value": float(value), "decimals": "-6"}
+    f.update({"instant": instant} if instant else {"start": start, "end": end})
+    return f
+
+
+XB = {
+    "20260310000111": [   # 2025 사업보고서
+        fact(CSM, SEP, 13_217_874e6, instant="2025-12-31"), fact(CSM, CON, 13_452_893e6, instant="2025-12-31"),
+        fact(CSM, {**SEP, "TypesOfContractsAxis": "HealthInsuranceMember"}, 7_950_196e6, instant="2025-12-31"),   # 상품군 하나: 고르면 안 된다
+        fact(CSM, {**SEP, "DisaggregationOfInsuranceContractsAxis": "ReinsuranceContractsHeldMember"}, 705_243e6, instant="2025-12-31"),
+        fact(NEW, {**SEP, **COMP}, 3_059_472e6, start="2025-01-01", end="2025-12-31"),
+        fact(NEW, {**SEP, "InsuranceContractsByComponentsAxis": "RiskAdjustmentForNonfinancialRiskMember"}, 139_396e6, start="2025-01-01", end="2025-12-31"),
+        fact(AMORT, SEP, 1_479_600e6, start="2025-01-01", end="2025-12-31"),
+    ],
+    "20260814000222": [   # 2026 반기보고서
+        fact(CSM, SEP, 13_741_297e6, instant="2026-06-30"),
+        fact(NEW, {**SEP, **COMP}, 1_717_464e6, start="2026-01-01", end="2026-06-30"),
+        fact(NEW, {**SEP, **COMP}, 880_000e6, start="2026-04-01", end="2026-06-30"),
+    ],
+}
+KICS_DOC = """<P>마. 지급여력비율</P><TABLE><TBODY>
+<TR><TD>구 분</TD><TD>제 71 기 반기(FY2026 2Q)</TD><TD>제 70 기(FY2025)</TD></TR>
+<TR><TD>지급여력(A)</TD><TD>129,552,503</TD><TD>65,739,719</TD></TR>
+<TR><TD>지급여력비율(A/B)</TD><TD>208.2</TD><TD>198.0</TD></TR></TBODY></TABLE>
+<P>[주요 종속회사]</P><TABLE><TR><TD>구 분</TD><TD>FY2026 2Q</TD></TR><TR><TD>지급여력비율</TD><TD>270.1</TD></TR></TABLE>"""
+
+
+class LifeDart(FakeDart):
+    def corps(self):
+        return [LIFE]
+
+    def statements(self, corp_code, year, fs_div, reprt_code="11011"):
+        if (year, reprt_code, fs_div) == (2025, "11011", "OFS"):
+            rows = [acc("ifrs-full_InsuranceServiceResult", "보험서비스결과", 974_716_000_000, "CIS", rno="20260310000111"),
+                    acc("dart_InvestmentIncomeExpenses", "투자손익", 691_745_000_000, "CIS", rno="20260310000111")]
+            return {"status": "000", "list": rows, "fetched_at": "2026-11-14T10:00:00"}
+        return {"status": "013", "list": [], "fetched_at": "2026-11-14T10:00:00"}
+
+    def annual_filings(self, corp_code, year):
+        return [{"rcept_no": "20260310000111", "rcept_dt": "20260310", "report_nm": f"사업보고서 ({year}.12)"}] if year == 2025 else []
+
+    def period_filings(self, corp_code, year, month):
+        return [{"rcept_no": "20260814000222", "rcept_dt": "20260814", "report_nm": "반기보고서 (2026.06)"}] if (year, month) == (2026, 6) else []
+
+    def xbrl_facts(self, rcept_no, reprt_code):
+        return {"facts": XB.get(rcept_no, []), "fetched_at": "2026-11-14T10:00:00"}
+
+    def document_text(self, rcept_no):
+        return KICS_DOC if rcept_no == "20260814000222" else ""
+
+
+def lrun(rows, when="2026-10-29"):
+    rep = Report.model_validate({"meta": {"ticker": "900030", "name": "가상생명", "report_date": when, "snapshot_date": when, "opinion": "매수"},
+                                 "claims": [], "data_rows": rows})
+    ext = dart_check.run(rep, LifeDart({}))
+    return by_rid(ext), {s["rid"]: s["why"] for s in ext["skipped"]}
+
+
+def test_보험손익은_공시의_보험서비스결과와_대조한다():
+    got, _ = lrun([row("R-1", "가상생명 보험손익 2025", "975", "십억 원"), row("R-2", "가상생명 투자손익 2025", "700", "십억 원")])
+    assert got["R-1"]["status"] == "일치" and got["R-1"]["source"]["account_nm"] == "보험서비스결과"
+    assert got["R-2"]["status"] == "불일치"
+
+
+def test_CSM은_XBRL_주석의_합계와_대조한다():
+    got, _ = lrun([row("R-1", "가상생명 CSM 잔액 2025", "13,218", "십억 원"),
+                   row("R-2", "가상생명 신계약 CSM 2025", "3,060", "십억 원"),
+                   row("R-3", "가상생명 CSM 상각액 2025", "1,480", "십억 원"),
+                   row("R-4", "가상생명 CSM 잔액 2026년 6월 말", "13.74조원", "조원"),
+                   row("R-5", "가상생명 신계약 CSM 2026년 상반기", "1조 7,175억원", "억 원")])
+    assert all(got[r]["status"] == "일치" for r in ("R-1", "R-2", "R-3", "R-4", "R-5")), {k: v["reason"] for k, v in got.items()}
+    assert got["R-1"]["basis"]["fs"] == "별도" and "XBRL" in got["R-1"]["source"]["api"]
+    assert "6월 말" in got["R-4"]["name"] and "누적" in got["R-5"]["reason"]
+
+
+def test_CSM_상품군_하나나_재보험_값과는_맞추지_않는다():
+    got, _ = lrun([row("R-1", "가상생명 CSM 잔액 2025", "7,950", "십억 원"),     # 건강보험만의 값
+                   row("R-2", "가상생명 별도 신계약 CSM 2Q26", "1,717", "십억 원")])     # 2분기라 해 놓고 상반기 누적 값
+    assert got["R-1"]["status"] != "일치"
+    assert got["R-2"]["status"] == "불일치"
+
+
+def test_조_단위_소수는_그_자릿수까지_본다():
+    got, _ = lrun([row("R-1", "가상생명 별도 CSM 잔액 2026년 6월 말", "13.70조원", "조원")])   # 공시 13.74조
+    assert got["R-1"]["status"] == "불일치"
+
+
+def test_지급여력비율은_공시_본문_표와_대조하고_기본자본은_건너뛴다():
+    got, why = lrun([row("R-1", "가상생명 K-ICS 비율", "208.2%", "%", as_of="2026년 6월 말"),
+                     row("R-2", "가상생명 지급여력비율", "210.5%", "%", as_of="2026년 6월 말"),
+                     row("R-3", "가상생명 기본자본 K-ICS 비율", "177.2%", "%", as_of="2026년 6월 말"),
+                     row("R-4", "가상생명 K-ICS 비율 2026E", "215%", "%")])
+    assert got["R-1"]["status"] == "일치" and got["R-1"]["computed"] == "208.2%"
+    assert got["R-2"]["status"] == "불일치"
+    assert "기본자본" in why["R-3"] and "추정" in why["R-4"]
+
+
+def test_FY_표기가_겹쳐도_추정치로_읽지_않는다():
+    # 항목 'FY2025' + 기준 'FY2025'를 이으면 '2025 FY…'가 되어 예전에는 '2025F'(추정)로 잘못 읽었다
+    info = dart_check.classify_dividend(DataRow(rid="R-1", item="가상생명 주당배당금 FY2025", value="5,300원", unit="원", as_of="FY2025",
+                                                basis="FY2025에만 18% 증가", page=1), "가상생명")
+    assert "skip" not in info and info["year"] == 2025
+    assert dart_check._EST.search("2026F 순이익") and dart_check._EST.search("26E")

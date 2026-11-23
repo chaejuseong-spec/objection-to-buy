@@ -16,31 +16,75 @@
   "claim_rulings": [
     {
       "claim_id": "C-1",
-      "reason": "(mock) 배심원 과반이 타당으로 보았고 반대 근거가 리포트 안에 있다.",
+      "reason": "(mock) 판단한 배심원 과반이 이의에 동의했고 이의 근거가 리포트 안에 있다.",
       "impact": "크다",
       "fix_part": "기업·재무"
     },
     {
       "claim_id": "C-2",
-      "reason": "(mock) 핵심 주장에 대한 이의 두 건이 과반 타당이다.",
+      "reason": "(mock) 핵심 주장에 대한 이의 두 건에 과반이 동의했고 중요도가 상이다.",
       "impact": "크다",
       "fix_part": "밸류에이션"
     },
     {
       "claim_id": "C-3",
-      "reason": "(mock) 타당이 과반이지만 반대 근거가 없다.",
+      "reason": "(mock) 동의가 과반이지만 중요도가 하라 경미한 지적이다.",
       "impact": "작다",
       "fix_part": "산업"
     },
     {
       "claim_id": "C-4",
-      "reason": "(mock) 과반이 과장으로 보았다.",
+      "reason": "(mock) 과반이 이의에 동의하지 않았다.",
       "impact": "작다",
       "fix_part": null
     },
     {
       "claim_id": "C-5",
       "reason": "(mock) 이의가 없다.",
+      "impact": "작다",
+      "fix_part": null
+    }
+  ],
+  "objection_rulings": [
+    {
+      "objection_id": "O-1",
+      "reason": "(mock) 이 지적(O-1)의 판정은 배심원 표결과 코드 규칙을 따랐다.",
+      "impact": "작다",
+      "fix_part": null
+    },
+    {
+      "objection_id": "O-2",
+      "reason": "(mock) 이 지적(O-2)의 판정은 배심원 표결과 코드 규칙을 따랐다.",
+      "impact": "작다",
+      "fix_part": null
+    },
+    {
+      "objection_id": "O-3",
+      "reason": "(mock) 이 지적(O-3)의 판정은 배심원 표결과 코드 규칙을 따랐다.",
+      "impact": "작다",
+      "fix_part": null
+    },
+    {
+      "objection_id": "O-4",
+      "reason": "(mock) 이 지적(O-4)의 판정은 배심원 표결과 코드 규칙을 따랐다.",
+      "impact": "작다",
+      "fix_part": null
+    },
+    {
+      "objection_id": "O-5",
+      "reason": "(mock) 이 지적(O-5)의 판정은 배심원 표결과 코드 규칙을 따랐다.",
+      "impact": "작다",
+      "fix_part": null
+    },
+    {
+      "objection_id": "O-6",
+      "reason": "(mock) 경쟁사 증설 철회를 근거 없이 단정했다는 지적에 판단한 배심원 과반이 동의했다.",
+      "impact": "작다",
+      "fix_part": null
+    },
+    {
+      "objection_id": "J-behavioral",
+      "reason": "(mock) 이 지적(J-behavioral)의 판정은 배심원 표결과 코드 규칙을 따랐다.",
       "impact": "작다",
       "fix_part": null
     }

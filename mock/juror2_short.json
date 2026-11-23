@@ -1,0 +1,12 @@
+{
+  "votes": [
+    {
+      "objection_id": "J-behavioral",
+      "vote": "판단 불가",
+      "view": "(mock) 분야 밖: 표현의 강도 문제라 하방 경로로 판단할 근거가 없다",
+      "reason": "(mock) 판단을 보류한다. 손실 전달 경로와 직접 관련이 없다 (1쪽)",
+      "importance": null
+    }
+  ],
+  "extra_objection": null
+}

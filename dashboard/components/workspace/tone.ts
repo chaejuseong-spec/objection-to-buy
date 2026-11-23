@@ -4,9 +4,10 @@ import type { CSSProperties } from "react";
 export type Tone = "red" | "orange" | "green" | "none";
 
 const BY_LABEL: Record<string, Tone> = {
-  수정: "red", 불일치: "red", 재심리: "red", 타당: "red",
-  "확인 필요": "orange", "판정 보류": "orange", "확인 불가": "orange", "검증 불가": "orange", "조건부 통과": "orange",
-  유지: "green", 일치: "green", 통과: "green", 과장: "green",
+  수정: "red", 불일치: "red", "재검토 필요": "red", 재심리: "red", 동의: "red",
+  "확인 필요": "orange", "판정 보류": "orange", "판단 불가": "orange", "확인 불가": "orange", "검증 불가": "orange",
+  "조건부 통과": "orange", "판정 불완전": "orange",
+  유지: "green", 일치: "green", 통과: "green", 비동의: "green",
   "실제 수치 불일치": "red", "일부 확인": "orange", "근거 확인": "green", "공식 일치": "green", "계산 일치": "green",
   "근거 미확인": "none", "숫자 근거 없음": "none",
 };
@@ -29,6 +30,13 @@ export const TONE: Record<Tone, { ink: string; line: string; mark: string; soft:
   none: { ink: "#5C626B", line: "#A3A8AE", mark: "rgba(92, 98, 107, 0.12)", soft: "#F4F5F3" },
 };
 
+/** 원문 위 숫자 문제 표시 색 (판정 색과 구분되게 보라). 2026-11-21 */
+export const NUMBER_COLOR = { ink: "#5B3CC4", line: "#7A5AF8", mark: "rgba(122, 90, 248, 0.20)", soft: "#F4F1FE" };
+export const numberVars = (): CSSProperties => ({
+  ["--ink-tone" as string]: NUMBER_COLOR.ink, ["--tone-line" as string]: NUMBER_COLOR.line,
+  ["--mark" as string]: NUMBER_COLOR.mark, ["--soft" as string]: NUMBER_COLOR.soft,
+});
+
 /** 판정 색을 CSS 변수로 넘긴다. 스타일시트는 var(--ink-tone) 등으로 읽는다. */
 export function toneVars(tone: Tone): CSSProperties {
   const t = TONE[tone];
@@ -42,8 +50,9 @@ export function toneVars(tone: Tone): CSSProperties {
 
 /** 리포트 평가를 한 문장으로 */
 export const GRADE_TEXT: Record<string, string> = {
-  재심리: "핵심 주장에 수정할 곳이 있어 다시 따져봐야 합니다",
-  "조건부 통과": "큰 문제는 없지만 확인할 곳이 남았습니다",
+  "재검토 필요": "핵심 주장이나 투자 결론을 바꿀 수 있는 곳에 수정이 있어 다시 검토해야 합니다",
+  "판정 불완전": "핵심 주장의 판정을 내리지 못했습니다(AI 호출 실패 등). 다시 분석해 보세요",
+  "조건부 통과": "결론은 유지되지만 고칠 점이나 핵심 주장에 확인할 곳이 남았습니다",
   통과: "주장과 숫자에서 수정할 곳을 찾지 못했습니다",
 };
 

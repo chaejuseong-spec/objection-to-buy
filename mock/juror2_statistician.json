@@ -1,0 +1,12 @@
+{
+  "votes": [
+    {
+      "objection_id": "J-behavioral",
+      "vote": "동의",
+      "view": "(mock) 성장률 가정에 범위나 민감도가 제시되지 않았다",
+      "reason": "(mock) 이의에 동의한다. 단일 값 전망을 확정처럼 썼다 (1쪽)",
+      "importance": "중"
+    }
+  ],
+  "extra_objection": null
+}

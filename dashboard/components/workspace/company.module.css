@@ -1,0 +1,1374 @@
+/* 기본 종목정보 탭 (2026-11-22). 색과 글꼴은 workspace.module.css 의 .root 토큰을 그대로 쓴다 */
+.page {
+  --up: #d92d20;
+  --down: #1f62d6;
+  --grid: #eef0f2;
+  --teal: var(--accent);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.page ::selection {
+  background: var(--accent-line);
+  color: var(--ink);
+}
+
+/* 머리글: 회사·주가 왼쪽, 핵심 지표 오른쪽. 높이를 작게 */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 32px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.headLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.headPrice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.headPrice b {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.headPrice span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.headPrice small {
+  font-size: 12px;
+  color: var(--faint);
+}
+.headStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+}
+.headStats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.headStats dt {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.headStats dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 내용: 하위 메뉴는 왼쪽 목록에 있다 */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+  min-width: 0;
+  padding-top: 24px;
+}
+
+/* 구역: 제목 → 선택 → 차트 → 표가 이어지게 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.sectionHead h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.sectionHead h3 small {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.select {
+  height: 30px;
+  padding: 0 28px 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: #f2f3f4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 16 16' fill='none' stroke='%235c626b' stroke-width='2'%3E%3Cpath d='M3 6l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 10px center;
+  appearance: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.segment {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: #f2f3f4;
+}
+.segment button {
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.segment button[aria-selected="true"],
+.segment button[aria-pressed="true"] {
+  background: #fff;
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--accent-line);
+}
+
+/* 차트 */
+.chartBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.legendItem[aria-pressed="false"] {
+  color: var(--faint);
+  text-decoration: line-through;
+}
+.swatchBar,
+.swatchLine {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+.swatchLine {
+  height: 0;
+  width: 12px;
+  border-top: 2px solid;
+  border-radius: 0;
+  vertical-align: 3px;
+}
+.chartScroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.axis {
+  font-size: 10.5px;
+  fill: var(--faint);
+}
+.tooltip {
+  position: absolute;
+  top: 6px;
+  width: 190px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(20, 24, 30, 0.08);
+  font-size: 12px;
+  pointer-events: none;
+}
+.tooltip strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.tipRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  line-height: 1.7;
+}
+.tipRow span {
+  color: var(--muted);
+}
+.tipRow i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+/* 수치표: 가로 구분선, 숫자 오른쪽 정렬, 왼쪽 칸 고정 */
+.tableScroll {
+  overflow-x: auto;
+}
+.finTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+}
+.finTable th,
+.finTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.finTable thead th {
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: right;
+}
+.finTable td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.finTable .stick {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 150px;
+  background: #fff;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-align: left;
+}
+.finTable thead .stick {
+  color: var(--muted);
+}
+.subRow .stick {
+  padding-left: 24px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.subRow td {
+  color: var(--ink-3);
+}
+.expandRow .stick button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--focus);
+}
+.pos {
+  color: var(--up);
+}
+.neg {
+  color: var(--down);
+}
+
+/* 기업개요 */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0 32px;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+.infoGrid div {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.infoGrid dt {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.infoGrid dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+.infoGrid a {
+  color: var(--focus);
+}
+.metricRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.metricRow div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px;
+  border-left: 1px solid var(--line-soft);
+}
+.metricRow div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.metricRow dt {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.metricRow dd {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 설명·빈 상태 */
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--faint);
+}
+.note,
+.source {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.source {
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--faint);
+}
+.empty {
+  margin: 0;
+  padding: 28px 0;
+  color: var(--muted);
+  text-align: center;
+}
+.muted {
+  color: var(--faint);
+  font-weight: 400;
+}
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.notice code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f2f3f4;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+/* 좁은 화면 */
+@media (max-width: 900px) {
+  .finTable .stick {
+    min-width: 120px;
+  }
+}
+
+/* 동종업계 비교: 순위 막대 */
+.rankList {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+.rankRow {
+  display: grid;
+  grid-template-columns: 22px minmax(90px, 160px) 1fr minmax(84px, auto);
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12.5px;
+}
+.rankNo {
+  color: var(--faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rankName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rankTrack {
+  height: 10px;
+  border-radius: 2px;
+  background: #f3f4f5;
+}
+.rankBar {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--accent-line);
+}
+.rankVal {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.rankRow[data-me] .rankName {
+  font-weight: 700;
+}
+.rankRow[data-me] .rankBar {
+  background: var(--accent);
+}
+.meRow th,
+.meRow td {
+  background: var(--accent-soft);
+}
+.meRow .stick {
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+.tick {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--faint);
+}
+.rankBar[data-neg] {
+  background: #e7b9b4;
+}
+.warnCell {
+  color: #b54708;
+  font-weight: 600;
+}
+
+/* 머리글의 회사 이름 (리포트 머리글 대신) */
+.headName {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.headName span {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.headName span + span {
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+
+/* 움직임 (2026-11-22): 하위 메뉴를 바꿀 때 내용이 갑자기 바뀌지 않게 투명도만 짧게. 하루 수십 번 누르는 곳이라 움직임(위치 이동)은 넣지 않는다.
+   차트 말풍선은 칸을 옮겨 다니며 읽는 데이터라 움직이지 않는다(바로 뜬다). 시간·곡선은 workspace.module.css 의 토큰 */
+.content {
+  animation: swapFade var(--dur) var(--ease-out) both;
+}
+@keyframes swapFade {
+  from { opacity: 0; }
+}
+.segment button,
+.legendItem,
+.side button {
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.select {
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .select:hover {
+    background-color: #e9ebec;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation-duration: 1ms;
+  }
+}
+
+/* 매출 구성: 도넛 + 목록 */
+.mix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px 40px;
+  padding: 8px 0;
+}
+.mixList {
+  flex: 1 1 280px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.mixList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+}
+.mixList span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mixList i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.mixList b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.mixList em {
+  font-style: normal;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mixList b {
+  min-width: 58px;
+  text-align: right;
+}
+
+.mixList li.mixSum {
+  font-weight: 600;
+}
+.mixList li.mixSum em {
+  color: var(--ink);
+}
+
+/* 이익 구성 (보험사) */
+.profit {
+  margin-top: 28px;
+}
+.profit h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.profit ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.profit li {
+  display: grid;
+  grid-template-columns: 120px 1fr 90px 58px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+}
+.profit li.mixSum {
+  font-weight: 600;
+}
+.profit em {
+  font-style: normal;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.profit b {
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.profitTrack {
+  height: 10px;
+}
+.profitTrack i {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: #2a78d6;
+}
+.profitTrack i.profitNeg {
+  background: #eb6834;
+}
+@media (max-width: 640px) {
+  .profit li {
+    grid-template-columns: 80px 1fr 72px 48px;
+  }
+}
+
+/* ───────── 지표 탐색 (2026-11-22): 왼쪽 지표 목록 + 오른쪽 차트·표 ───────── */
+.explorer {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.metricPane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 12px 0;
+  border-right: 1px solid var(--line);
+  min-width: 0;
+}
+.metricSearch {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--control);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12.5px;
+}
+.metricSearch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.metricCount {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.metricCount button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 11.5px;
+  color: var(--accent);
+}
+.metricList {
+  max-height: 620px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  margin-right: -4px;
+  padding-right: 4px;
+}
+.metricCat + .metricCat {
+  margin-top: 6px;
+}
+.metricCatHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 6px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-align: left;
+}
+.metricCatHead::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin: 0 8px 0 2px;
+  border-right: 1.5px solid var(--faint);
+  border-bottom: 1.5px solid var(--faint);
+  transform: rotate(-45deg);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.metricCatHead[aria-expanded="true"]::before {
+  transform: rotate(45deg);
+}
+.metricCatHead span {
+  flex: 1;
+}
+.metricCatHead small {
+  font-weight: 400;
+  color: var(--faint);
+}
+.metricItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+.metricItem:hover {
+  background: var(--hover);
+}
+.metricItem[data-focus] {
+  background: var(--accent-soft);
+}
+.metricItem input {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.metricItem button {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  justify-content: space-between;
+  gap: 8px;
+  height: 28px;
+  align-items: center;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  text-align: left;
+}
+.metricItem button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metricItem[data-on] button span {
+  font-weight: 600;
+}
+.metricItem[data-focus] button span {
+  color: var(--accent);
+}
+.metricItem button small {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.metricMain {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 12px 0 16px 20px;
+}
+.explorerBar {
+  display: flex;
+  justify-content: flex-end;
+}
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 0;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.summary dt {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.summary dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.summaryMain dt {
+  font-weight: 600;
+  color: var(--accent);
+}
+.summaryMain dd {
+  font-size: 20px;
+  font-weight: 700;
+}
+.summaryMain dd small {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.summarySrc {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+.chartStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.chartUnit {
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.insGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px 28px;
+}
+.calcTag,
+.srcTag {
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+.calcTag {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.srcTag {
+  color: var(--faint);
+}
+.finTable th.latest,
+.finTable td.latest {
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+.finTable thead th.latest {
+  color: var(--accent);
+}
+.focusRow th,
+.focusRow td {
+  background: #f6f8fb;
+}
+.focusRow .stick {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: #f6f8fb;
+}
+.focusRow td.latest {
+  background: var(--accent-soft);
+}
+@media (max-width: 900px) {
+  .explorer {
+    grid-template-columns: 1fr;
+  }
+  .metricPane {
+    padding-right: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .metricList {
+    max-height: 280px;
+  }
+  .metricMain {
+    padding-left: 0;
+  }
+}
+
+/* 동종사 추이 비교: 회사 고르기 줄 */
+.peerRows {
+  border-top: 1px solid var(--line);
+}
+.peerPick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12.5px;
+}
+.peerHead {
+  flex: 0 0 100%;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.peerMe {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.peerMe i {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+.peerItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.peerItem input {
+  margin: 0;
+}
+.peerItem[data-on] {
+  font-weight: 600;
+}
+.peerItem small {
+  font-weight: 400;
+  color: var(--faint);
+}
+.peerItem em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* 엑셀로 내보내기 */
+.exportWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+.exportBtn {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.exportBtn:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.exportBtn:disabled {
+  color: var(--muted);
+  cursor: progress;
+}
+.explorerBar {
+  gap: 12px;
+  align-items: center;
+}
+
+/* 지표 탐색 왼쪽 칸의 비교 회사 */
+.peerPane {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.peerPaneItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 2px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.peerPaneItem:hover {
+  background: var(--hover);
+}
+.peerPaneItem input {
+  margin: 0;
+}
+.peerPaneItem span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.peerPaneItem[data-on] span {
+  font-weight: 600;
+}
+.peerPaneItem small,
+.peerPaneItem em {
+  margin-left: auto;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--faint);
+}
+.peerPaneMore {
+  margin: 4px 0 2px;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  font-size: 11.5px;
+  color: var(--accent);
+  text-align: left;
+}
+.cmpGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 18px 24px;
+}
+.chartUnit small {
+  font-weight: 400;
+  color: var(--faint);
+}
+.peerPaneHead {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 2px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+.peerPaneHead small {
+  font-weight: 400;
+  color: var(--faint);
+}
+
+/* 함께 보기 버튼 */
+.togetherBtn {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--control);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.togetherBtn[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+.togetherBtn:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+/* 내 차트 (차트 만들기 카드) */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  gap: 20px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.cardTitle {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+}
+.cardTitle:hover {
+  border-color: var(--line);
+}
+.cardTitle:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+.cardHead small {
+  flex: 0 0 100%;
+  order: 3;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.cardActions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.cardActions .exportWrap {
+  margin-right: 0;
+}
+.cardRemove {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--control);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.cardRemove:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+@media (max-width: 720px) {
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 이익 구성: 막대 한 개 */
+.profit h4 small {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.stack {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--line-soft);
+}
+.stack i {
+  display: block;
+  height: 100%;
+}
+.stack i + i {
+  border-left: 2px solid #fff;
+}
+.stackLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 28px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.stackLegend li,
+.profit .stackLegend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border-bottom: 0;
+}
+.stackLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.stackLegend span i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.stackLegend em {
+  font-style: normal;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.stackLegend b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 배당 추이: 작은 차트 셋을 한 줄에 */
+.divGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px 24px;
+}
+
+/* 기업 정보 한 줄 */
+.infoRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.infoRow div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 14px 10px 0;
+}
+.infoRow div + div {
+  padding-left: 14px;
+  border-left: 1px solid var(--line-soft);
+}
+.infoRow dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.infoRow dd {
+  margin: 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.infoRow a {
+  color: var(--focus);
+  font-weight: 500;
+}
+
+/* 주가 추이 */
+.priceBox {
+  position: relative;
+  height: 340px;
+  border-top: 1px solid var(--line);
+}
+.priceBox .empty {
+  padding: 20px 0;
+}
+.priceLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.priceLegend b {
+  margin-left: 4px;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* 검색한 종목 화면: 위쪽 메뉴 */
+.stockPage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.stockMenu {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.stockMenu button {
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.stockMenu button[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* 비교 회사 직접 추가 */
+.peerAdd,
+.peerAddInline {
+  position: relative;
+}
+.peerAdd {
+  margin: 2px 0 6px;
+}
+.peerAddInline {
+  flex: 0 0 200px;
+}
+.peerAdd input,
+.peerAddInline input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px dashed var(--accent-line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+}
+.peerAdd input:focus-visible,
+.peerAddInline input:focus-visible {
+  border-style: solid;
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.peerAddList {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(26, 29, 33, 0.12);
+}
+.peerAddList button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font-size: 12.5px;
+  text-align: left;
+}
+.peerAddList button:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.peerAddList small {
+  color: var(--faint);
+}
+
+/* 주가 차트: 마우스를 올린 날 상자 */
+.priceWrap {
+  position: relative;
+}
+.priceTip {
+  top: 12px;
+  z-index: 3;
+  font-variant-numeric: tabular-nums;
+}
+.priceTip b {
+  font-weight: 600;
+}
+.priceTip .pos {
+  color: var(--up);
+  font-weight: 600;
+}
+.priceTip .neg {
+  color: var(--down);
+  font-weight: 600;
+}

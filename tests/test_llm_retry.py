@@ -134,3 +134,14 @@ def test_하루_한도는_다시_시도하지_않고_바로_알린다(monkeypatc
     with pytest.raises(RuntimeError, match=r"무료 등급의 하루 사용 한도\(하루 20번\).*16시간 42분"):
         llm._real_call("s", "u", _cfg())
     assert seen == ["m-main"] and waits == []          # 한 번만 부르고, 쉬지도 예비 모델로 넘어가지도 않는다
+
+
+def test_형식이_틀린_첫_답은_다시_불러_성공해도_파일로_남긴다(monkeypatch, tmp_path):
+    from tribunal import llm, runner
+    from tribunal.schemas import JudgeOut
+    answers = iter(['{"key_issues": [{"objection_id": "O-1", "title": "리포트가 "확정"이라고 썼다"}]}', '{"key_issues": []}'])
+    monkeypatch.setattr(llm, "_real_call", lambda *a, **k: next(answers))
+    got = runner._step(tmp_path, "judge", JudgeOut, lambda: llm.call("judge", {}, JudgeOut, {}, mock=False), mock=False)
+    assert got is not None and got.key_issues == []
+    saved = (tmp_path / "steps" / "judge.try1.failed.txt").read_text(encoding="utf-8")
+    assert '"확정"' in saved and not [k for k in llm.FAILED_RAW if k.startswith("judge.try")]

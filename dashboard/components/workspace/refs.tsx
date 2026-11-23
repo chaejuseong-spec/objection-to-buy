@@ -28,6 +28,7 @@ function describe(r: Row) {
 export function Linked({ text }: { text: string }) {
   const rows = useContext(RowsContext);
   if (!text) return null;
+  text = plainIds(text);        // 숫자 id 말고 다른 내부 번호는 먼저 지운다
   const out: ReactNode[] = [];
   let last = 0;
   for (const m of text.matchAll(TOKEN)) {
@@ -46,4 +47,25 @@ export function Linked({ text }: { text: string }) {
   }
   out.push(text.slice(last));
   return <>{out}</>;
+}
+
+// AI 글 속의 내부 번호(O-3, J-statistician, C-3, K-4, X-3, T-1:0:2)를 지운다. 사람은 번호가 아니라 내용으로 읽는다 (2026-11-20 사용자 요청)
+// 숫자 id(R-09)는 Linked 가 이름으로 바꾼다. 'K-ICS'처럼 하이픈 뒤가 숫자가 아닌 말은 건드리지 않는다
+const JUROR: Record<string, string> = { accountant: "회계사", industry: "산업 전문가", short: "공매도 투자자", statistician: "통계학자", behavioral: "행동경제학자" };
+const ID = String.raw`(?:[A-Z]-\d[\d:]*|J-[a-z]+)`;
+const ID_LIST = new RegExp(String.raw`\s*\(\s*${ID}(?:\s*[,·/]\s*${ID})*\s*\)`, "g");     // '(K-4, K-5)', '(X-3)'
+export function plainIds(text: string): string {
+  return text
+    .replace(/배심원\s*추가\s*이의\s*J-([a-z]+)/g, (_, k: string) => `${JUROR[k] ?? "배심원"}가 추가한 지적`)   // 직업 이름이 모두 모음으로 끝나 '가'
+    .replace(/(추가한|낸)\s*J-[a-z]+/g, "$1 지적")
+    .replace(ID_LIST, "")
+    .replace(/J-([a-z]+)/g, (_, k: string) => `${JUROR[k] ?? "배심원"}가 추가한 지적`)
+    .replace(/\bO-\d+(는|가|를|와)?/g, (_, j?: string) => "지적" + (j ? { 는: "은", 가: "이", 를: "을", 와: "과" }[j] : ""))   // 받침에 맞춘 조사
+    .replace(/\bC-\d+(는|가|를|와)?/g, (_, j?: string) => "다른 주장" + (j ? { 는: "은", 가: "이", 를: "을", 와: "과" }[j] : ""))
+    .replace(/\s*\b[DEFKTX]-\d[\d:]*/g, "");
+}
+
+/** 판사 글: 내부 번호를 지우고, 숫자 id 는 이름으로 */
+export function JudgeText({ text }: { text: string }) {
+  return <Linked text={text} />;
 }

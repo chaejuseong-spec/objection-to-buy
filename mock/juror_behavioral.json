@@ -2,33 +2,39 @@
   "votes": [
     {
       "objection_id": "O-1",
-      "vote": "타당",
-      "reason": "(mock) 이의가 맞고 결론이 달라질 수 있다."
+      "vote": "동의",
+      "reason": "(mock) 이의에 동의한다. 결론에 닿는 경로가 있다.",
+      "importance": "중"
     },
     {
       "objection_id": "O-2",
-      "vote": "타당",
-      "reason": "(mock) 이의가 맞고 결론이 달라질 수 있다."
+      "vote": "동의",
+      "reason": "(mock) 이의에 동의한다. 결론에 닿는 경로가 있다.",
+      "importance": "상"
     },
     {
       "objection_id": "O-3",
-      "vote": "확인 불가",
-      "reason": "(mock) 받은 자료로는 판단할 수 없다."
+      "vote": "판단 불가",
+      "reason": "(mock) 판단을 보류한다. 받은 자료로는 판단할 수 없다.",
+      "importance": null
     },
     {
       "objection_id": "O-4",
-      "vote": "타당",
-      "reason": "(mock) 이의가 맞고 결론이 달라질 수 있다."
+      "vote": "동의",
+      "reason": "(mock) 이의에 동의한다. 결론에 닿는 경로가 있다.",
+      "importance": "하"
     },
     {
       "objection_id": "O-5",
-      "vote": "과장",
-      "reason": "(mock) 이의는 맞지만 영향이 작다."
+      "vote": "비동의",
+      "reason": "(mock) 이의에 동의하지 않는다. 리포트에 반박 근거가 있다.",
+      "importance": null
     },
     {
       "objection_id": "O-6",
-      "vote": "타당",
-      "reason": "이의를 지지한다. 3쪽 경쟁사 증설 철회는 근거 자료 없이 단정한 것이다 (3쪽)"
+      "vote": "동의",
+      "reason": "이의에 동의한다. 3쪽 경쟁사 증설 철회는 근거 자료 없이 단정한 것이다 (3쪽)",
+      "importance": "중"
     }
   ],
   "extra_objection": {

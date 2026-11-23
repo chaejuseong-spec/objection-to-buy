@@ -6,6 +6,7 @@ import type { Figure, Result, Table } from "@/lib/types";
 import { loadPdf, pdfUrl } from "@/lib/pdf";
 import { Verdict } from "./primitives";
 import { unitAfter } from "./tone";
+
 import s from "./workspace.module.css";
 
 const fmt = (v: number, unit: string) =>
@@ -222,6 +223,18 @@ export function FiguresView({ reportId, result, onPage, onCheck }: {
           </div>
         ) : <p className={s.muted} style={{ fontSize: 13 }}>{figures.length ? "주장이 있는 쪽에는 도표가 없습니다. 전체를 눌러 보세요." : "원문에서 찾은 도표가 없습니다."}</p>}
       </section>
+      {result.extraction && (
+        <section className={s.block} style={{ maxWidth: 720 }}>
+          <div className={s.sectionHead}><h3>원문 대조<small>AI가 뽑은 것을 코드가 원문과 한 글자씩 대조</small></h3></div>
+          <dl className={s.statGrid}>
+            {([["주장", result.extraction.claims], ["숫자", result.extraction.data_rows], ["검증 식", result.extraction.checks], ["표", result.extraction.tables], ["버린 것", result.extraction.dropped_total]] as const).map(([k, v]) => (
+              <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+            ))}
+          </dl>
+          <p className={s.foot}>원문에서 글자 그대로 찾지 못한 주장, 숫자, 표의 줄은 버렸습니다.</p>
+        </section>
+      )}
+
     </div>
   );
 }

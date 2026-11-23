@@ -16,6 +16,6 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/reports/[id]/re
       headers: { "Content-Type": "text/markdown; charset=utf-8", "Content-Disposition": `attachment; filename*=UTF-8''${name}` },
     });
   } catch {
-    return new Response("이 리포트에는 평가기록지가 없습니다.", { status: 404 });
+    return new Response("이 리포트에는 평가 기록지가 없습니다.", { status: 404 });
   }
 }

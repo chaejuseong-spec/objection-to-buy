@@ -216,13 +216,28 @@ def run(report: Report, existing: Optional[List[dict]] = None) -> List[dict]:
         base = ts[0]
         for other in ts[1:]:
             unit_tol = max(_tolerance(x["row"], x["mult"]) if x["kind"] == "won" else _display_unit(x["row"]) for x in (base, other))
-            if abs(base["value"] - other["value"]) <= unit_tol:
+            if abs(base["value"] - other["value"]) <= unit_tol or _rounded_same(base["value"], other["value"]):
                 continue
             who = " ".join(x for x in (company or report.meta.name, period, fs) if x)
             add(f"{who} {LABEL[metric]} 표기가 쪽마다 같은가", other["row"], base["row"].rid,
                 f"{base['row'].page}쪽 {_show(base['row'].value, base['row'].unit)} / {other['row'].page}쪽 {_show(other['row'].value, other['row'].unit)}",
                 MISMATCH, None, None, "같은 항목이 서로 다르게 적혀 있습니다", extra_rids=(base["row"].rid,))
     return out
+
+
+def _rounded_same(a: float, b: float) -> bool:
+    """한쪽이 다른 쪽을 반올림하거나 끊어 적은 값인가. 예: 목표주가 287,108원을 287,000원으로 적음.
+    끝자리 0의 개수로 단위를 정하고(287,000 -> 1,000원 단위), 차이가 그 단위보다 작고 1% 이내일 때만."""
+    def zeros(x: float) -> int:
+        if x != int(x) or x == 0:
+            return 0
+        n, x = 0, int(abs(x))
+        while x % 10 == 0:
+            n, x = n + 1, x // 10
+        return n
+    step = 10 ** max(zeros(a), zeros(b))
+    diff = abs(a - b)
+    return step > 1 and diff < step and diff <= 0.01 * max(abs(a), abs(b))
 
 
 def _display_unit(row: DataRow) -> float:

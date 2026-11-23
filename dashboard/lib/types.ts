@@ -14,6 +14,9 @@ export interface ExternalSource {
 export type NumberCheck = Omit<RawResult["numbers"]["results"][number], "computed"> & {
   computed: number | string | null;   // 다시 계산한 값(숫자) 또는 공시 값(단위 붙은 글자)
   kind?: string; hue?: string; source?: ExternalSource; timing?: string;
+  via?: string;                       // 출처 이름을 따로 적은 결과 (예: DART·KRX = 공시 보유 주식 수 × KRX 종가)
+  matched_by?: string;                // ai_pool(공시에서 같은 값), ai_ratio(공시 두 숫자로 계산) 등
+  material?: string;                  // 계산 재료를 공시와 대조한 결과면 그 재료 (예: 7,099천주). 숫자 자신의 대조가 아니다
 };
 export interface ExternalSummary {
   provider: string | null; enabled: boolean | null; error: string | null;
@@ -43,20 +46,105 @@ type RawClaim = RawResult["claims"][number];
 type RawObjection = RawClaim["objections"][number];
 /** 이의. page·quote: 리스크 검토자가 원문에서 짚은 문장 (quote_found: 코드가 원문에 있다고 확인함) */
 export type Objection = RawObjection & {
+  /** 주장 밖 지적의 판사 판정 근거 (2026-11-20 추가, 예전 결과와 주장에 묶인 지적은 null) */
+  ruling?: { reason: string; impact: string; fix_part: string | null } | null;
   split?: boolean; claim_id?: string | null; page?: number | null; quote?: string; quote_found?: boolean;
+  /** 인용이 든 원문 문장 전체 (앞 + 짚은 구절 + 뒤). 코드가 원문에서 잘라 붙인다. 예전 결과에는 없을 수 있다 */
+  quote_ctx?: { before: string; quote: string; after: string; page: number } | null;
+  /** 배심원이 추가한 이의를, 이의를 낸 배심원을 뺀 나머지가 2차 표결했는가 */
+  round2?: boolean;
+  /** 판정 사유(유지: 이의 불인정 / 경미한 지적, 확인 필요: 중요도 의견 갈림 등)와 이의의 중요도(동의표의 다수) */
+  verdict_reason?: string; importance?: string | null; importance_split?: boolean;
 };
-export type Claim = Omit<RawClaim, "objections"> & { objections: Objection[]; code?: CodeFinding[] };
+export type Claim = Omit<RawClaim, "objections"> & {
+  objections: Objection[]; code?: CodeFinding[];
+  dependency?: { from: string[]; verdict: string };   // 결론 주장(목표주가 등)이 근거 주장을 따라 바뀐 경우 (판정 규칙 9장 (가-2))
+};
 
 type RawMark = RawResult["marks"][number];
 export type Result = Omit<RawResult, "numbers" | "claims" | "marks"> & {
-  marks: (RawMark & { pass?: boolean })[];     // pass: 통과한 곳(초록). 화면에서 켤 때만 보인다
+  marks: (RawMark & { pass?: boolean; ctx?: number[][] })[];     // pass: 통과한 곳(초록). ctx: 지적이 걸린 문장 전체 위치(연하게)
   numbers: Omit<RawResult["numbers"], "results"> & { results: NumberCheck[] };
   claims: Claim[];
   external?: Record<string, ExternalSummary | null> | null;
   evidence?: EvidenceTable | null;
   code_findings?: Record<string, CodeFinding[]>;
   other_objections?: Objection[];     // 원문에서 찾았고 추출된 주장과 묶이지 않은 이의
+  company?: Company | null;           // 기본 종목정보 (지금 기준 재무·실적·배당·시세). 파이썬 tribunal/external/company.py
 };
+
+/* ───────── 기본 종목정보 (2026-11-22) ───────── */
+export type FinKey = "revenue" | "op" | "pretax" | "ni" | "ni_owner" | "assets" | "liab" | "equity" | "equity_owner"
+  | "cur_assets" | "cur_liab" | "cfo" | "cfi" | "cff" | "cogs" | "gross" | "sga" | "inventory" | "capex"
+  | "ins_profit" | "inv_profit" | "div_rev";   // 보험사 손익 (DART 손익계산서)
+/** 한 기간의 핵심 계정(원). 없는 값은 null. derived: 계산으로 만든 값(4분기 = 연간 − 3분기 누적 등), missing: 공시 API 값이 틀려 비운 값 */
+export type FinPeriod = { period: string; end: string; rcept_no: string; derived?: string[]; missing?: string[] } & Partial<Record<FinKey, number | null>>;
+export interface StatementTable {
+  accounts: { id: string; name: string; key: string | null }[];
+  annual: Record<string, Record<string, number | null>>;
+  quarter: Record<string, Record<string, number | null>>;
+  missing?: [string, string][];
+}
+export interface PriceDay {
+  date: string; close: number | null; high: number | null; low: number | null; open: number | null;
+  change: number | null; rate: number | null; mktcap: number | null; shares: number | null; market: string;
+}
+/** 동종사 추이 비교용: 체크한 회사 하나의 재무 추이 (/api/reports/[id]/peer) */
+export interface PeerSeries {
+  error?: string; made_at: string; ticker: string; name: string; financial: boolean; fs?: string | null;
+  annual: FinPeriod[]; quarter: FinPeriod[];
+  insurance?: Company["insurance"]; sector?: Pick<Sector, "part" | "sector" | "company" | "month" | "metrics" | "series"> | null;
+}
+/** 동종사 추이 비교용: 금감원 FISIS 에 있는 회사 하나(비상장 포함)의 업종 지표·CSM 분기 추이 (회사 개별 기준) */
+export interface FisisPeer {
+  error?: string; made_at: string; finance_cd: string; part: string; name: string; full_name: string; sector: string;
+  metrics: Sector["metrics"]; series: ({ period: string } & Record<string, number | string | null>)[];
+  dart?: PeerSeries;                  // DART 에 정기보고서를 내는 비상장사면 재무제표 (매출·순이익·ROE 등)
+  fs_quarter?: FinPeriod[]; fs_annual?: FinPeriod[];   // 보험사 금감원 재무 요약 (DART 정기보고서가 없는 회사용, 회사 개별 기준)
+}
+export interface Company {
+  error?: string;
+  made_at: string; ticker: string; name: string; financial: boolean;
+  info: Partial<Record<"corp_name" | "corp_name_eng" | "ceo_nm" | "est_dt" | "hm_url" | "induty_code" | "acc_mt" | "adres", string>>;
+  price: PriceDay | null;
+  range52: { high: number; low: number; days: number } | null;
+  price_days: number;
+  statements: { fs: string | null; annual: FinPeriod[]; quarter: FinPeriod[]; tables: Partial<Record<"IS" | "BS" | "CF", StatementTable>>;
+                sources?: { period: string; rcept_no: string; url: string }[] };
+  dividends: { year: number; rcept_no: string; dps?: number; yield?: number; payout?: number }[];
+  /** 보험사만: CSM 잔액·신계약 CSM·CSM 상각액(원, 분기 3개월 값), 지급여력비율(%) */
+  insurance?: { period: string; end: string; rcept_no: string; csm?: number | null; csm_new?: number | null; csm_amort?: number | null;
+                kics?: number | null; kics_from?: string; derived?: string[]; src?: { csm?: string | null; kics?: string | null } }[] | null;
+  metrics: { eps: number | null; bps: number | null; per: number | null; pbr: number | null; roe: number | null; basis: Record<string, string> };
+  sources: Record<string, string>;
+  price_checked_at?: string;          // 시세를 마지막으로 확인한 시각 (화면이 하루 한 번 새로 받는다)
+  peers?: Peers | null;
+  sector?: Sector | null;
+  /** 매출 구성 (사업보고서 '사업의 내용'의 제품·서비스별 매출 비중 표, 보험사는 보험종목별 수입보험료). 못 찾으면 null */
+  sales_mix?: { items: { name: string; amount: number | null; share: number }[]; title: string; year: number; rcept_no: string; table: string;
+                adjust?: number | null; total?: number | null; total_label?: string;
+                profit?: { items: { name: string; amount: number }[]; total: number | null } | null } | null;             // 금융회사: 금감원 FISIS 업종 지표 (분기 추이 + 업계 전체 비교, 비상장 포함)
+}
+export interface Sector {
+  error?: string; part: string; sector: string; company: string; month: string | null;
+  metrics: { key: string; label: string; group: string; unit: string }[];
+  series: ({ period: string } & Record<string, number | string | null>)[];
+  peers: ({ finance_cd: string; name: string; full_name: string; me: boolean } & Record<string, number | string | boolean | null>)[];
+}
+export interface IndustryRow {
+  finance_cd: string; name: string; full_name: string; me: boolean;
+  kics: number | null; kics_basis: string; kics_after: number | null;
+  assets: number | null; equity: number | null; ins_profit: number | null; inv_profit: number | null; ni: number | null;
+  op_margin: number | null; inv_yield: number | null; new_rate: number | null; lapse_rate: number | null; roa: number | null;
+}
+export interface Industry { error?: string; made_at?: string; part?: string; part_name?: string; month?: string; rows?: IndustryRow[]; source?: string; basis?: string }
+export interface PeerRow {
+  ticker: string; name: string; error?: string; induty?: string; close?: number | null; mktcap?: number | null; rate?: number | null; day?: string;
+  fs?: string | null; period?: string | null; per?: number | null; pbr?: number | null; roe?: number | null; debt?: number | null;
+  op?: number | null; ni4?: number | null; equity?: number | null; eps?: number | null; bps?: number | null;
+  csm?: number | null; csm_new?: number | null; kics?: number | null; kics_src?: string;
+}
+export interface Peers { error?: string; made_at?: string; induty?: string; insurer?: boolean; basis?: string; rows?: PeerRow[] }
 export type Mark = Result["marks"][number];
 export type Figure = Result["figures"][number];
 export type Table = Result["tables"][number];

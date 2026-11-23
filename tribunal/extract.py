@@ -92,7 +92,9 @@ def _value_forms(v) -> List[str]:
     if isinstance(v, int) or (isinstance(v, float) and v.is_integer()):
         n = int(v)
         return [f"{abs(n):,}", f"({abs(n):,})", str(abs(n))] if n < 0 else [f"{n:,}", str(n)]
-    return [f"{abs(v):.1f}", f"{abs(v):.2f}"]
+    a = abs(v)
+    forms = [f"{a:,.1f}", f"{a:,.2f}", f"{a:.1f}", f"{a:.2f}"]      # 천 단위 쉼표가 있는 소수(21,996.5)도 찾는다
+    return forms + [f"({x})" for x in forms[:2]] if v < 0 else forms
 
 
 def verify(report: Report, pdf: Path, pages: Optional[List[dict]] = None) -> Tuple[Report, dict]:
@@ -179,7 +181,7 @@ def verify(report: Report, pdf: Path, pages: Optional[List[dict]] = None) -> Tup
 
 
 def extract(pdf: Path, cfg: dict, mock: bool, mock_dir: Optional[Path] = None, demo: bool = False,
-            pages: Optional[List[dict]] = None) -> Tuple[Optional[Report], dict]:
+            pages: Optional[List[dict]] = None, raw_path: Optional[Path] = None) -> Tuple[Optional[Report], dict]:
     """PDF -> (확인된 Report, 추출 기록). AI가 답을 못 내면 (None, 기록).
     pages 를 주면 PDF 대신 그 글을 AI에게 읽힌다 (품질 평가용: 숫자를 바꾼 사본을 원본 글 순서로 읽히기 위해)."""
     given = pages
@@ -190,6 +192,9 @@ def extract(pdf: Path, cfg: dict, mock: bool, mock_dir: Optional[Path] = None, d
     big = dict(cfg, max_output_tokens=cfg.get("extract_max_output_tokens", 16000),   # 답이 길어 한도와 기다리는 시간을 따로 둔다
                timeout_sec=cfg.get("extract_timeout_sec", 900))
     raw = llm.call("extractor", {"pages": pages}, Report, big, mock, mock_dir)
+    if raw is not None and raw_path is not None and not mock:   # 원문 대조 전 답을 남긴다: 대조 코드를 고친 뒤 AI 호출 없이 다시 대조할 수 있다
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+        raw_path.write_text(raw.model_dump_json(indent=1), encoding="utf-8")
     if raw is None:
         return None, {"error": "추출 담당이 형식에 맞는 답을 내지 못했습니다.", "pages": len(pages)}
     raw = raw.model_copy(update={"external_data": False,

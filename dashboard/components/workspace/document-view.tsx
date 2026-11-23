@@ -5,14 +5,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import type { Mark, Result } from "@/lib/types";
 import { loadPdf, pdfUrl } from "@/lib/pdf";
-import { findObjection } from "./problems";
-import { TONE, toneOf, toneVars, type Tone } from "./tone";
+import { findObjection, shownMarks } from "./problems";
+import { TONE, toneOf, toneVars, type Tone, NUMBER_COLOR, numberVars } from "./tone";
 import s from "./workspace.module.css";
 
 const WIDTHS = [560, 680, 800, 940];
-type Filter = "all" | "red" | "orange" | "green" | "number";
+export type Filter = "all" | "red" | "orange" | "green" | "number";
 
 /** 표시 하나가 가리키는 판정(주장 판정, 원문 문장을 짚은 이의의 판정, 숫자 검증 결과) */
+/** 표시 하나의 묶음(위 거르개 칸): 숫자 문제 / 판정 색 */
+export function markGroup(result: Result, ref: string): Filter {
+  if (result.numbers.results.some((x) => x.check_id === ref)) return "number";
+  return markTone(result, ref) as Filter;
+}
+
 export function markTone(result: Result, ref: string): Tone {
   const c = result.claims.find((x) => x.id === ref);
   if (c) return toneOf(c.verdict);
@@ -58,9 +64,14 @@ function Page({ pdf, n, width, ratio, marks, selected, flash, isDimmed, toneFor,
   return (
     <div ref={box} id={`pg-${n}`} data-page={n} className={s.pdfPage} style={{ width, height: width * ratio }}>
       <canvas ref={canvas} aria-label={`원문 ${n}쪽`} />
+      {marks.map((m, mi) => (m.ctx ?? []).map((r, ri) => (
+        <div key={`c${mi}-${ri}`} className={s.pdfCtx} aria-hidden="true" data-active={selected === m.ref || undefined}
+             style={{ ...toneVars(toneFor(m.ref)), left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%` }}
+             onClick={() => onSelect(m.ref)} />
+      )))}
       {marks.map((m, mi) => m.rects.map((r, ri) => (
         <button key={`${mi}-${ri}`} type="button" className={s.pdfMark} data-ref={m.ref} data-first={ri === 0 || undefined}
-                style={{ ...toneVars(toneFor(m.ref)), left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%` }}
+                style={{ ...(m.kind === "number" ? numberVars() : toneVars(toneFor(m.ref))), left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%` }}
                 data-active={selected === m.ref} data-dimmed={isDimmed(m)} data-flash={flash === m.ref || undefined} aria-pressed={selected === m.ref}
                 aria-label={`${m.kind === "claim" ? "주장" : m.kind === "objection" ? "원문 지적" : "숫자 검증"} 기록 보기`} tabIndex={ri === 0 ? 0 : -1}
                 onClick={() => onSelect(m.ref)} />
@@ -72,22 +83,19 @@ function Page({ pdf, n, width, ratio, marks, selected, flash, isDimmed, toneFor,
 
 export interface Jump { ref?: string; page?: number; nonce: number }
 
-export function DocumentView({ reportId, result, selected, onSelect, jump }: {
+export function DocumentView({ reportId, result, selected, onSelect, jump, filter, onFilter }: {
   reportId: string; result: Result; selected: string | null; onSelect: (ref: string) => void; jump: Jump | null;
+  filter: Filter; onFilter: (f: Filter) => void;     // 거르개는 오른쪽 패널의 이전/다음과 함께 쓰려고 바깥에서 들고 있다
 }) {
   const { document: doc } = result;
   // 통과한 곳(일치한 숫자, 이의 없는 주장)은 칠하지 않는다. 문제가 있는 곳만 보여준다
   // 숫자 표시는 지금 결과가 '일치'면 칠하지 않는다 (다시 검산해 맞는 것으로 바뀐 경우의 남은 표시)
-  const marks = useMemo(() => {
-    const ok = new Set(result.numbers.results.filter((x) => x.status === "일치").map((x) => x.check_id));
-    return result.marks.filter((m) => !m.pass && !(m.kind === "number" && ok.has(m.ref)));
-  }, [result.marks, result.numbers.results]);
+  const marks = useMemo(() => shownMarks(result), [result]);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [ratio, setRatio] = useState(1.414);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [current, setCurrent] = useState(1);
-  const [filter, setFilter] = useState<Filter>("all");
   const desk = useRef<HTMLDivElement>(null);
   const width = WIDTHS[zoom];
   const pages = doc.pages || 0;
@@ -101,7 +109,7 @@ export function DocumentView({ reportId, result, selected, onSelect, jump }: {
   // 표시 하나의 분류: 통과(초록) / 숫자 문제 / 주장 판정 색
   const group = (m: Mark): Filter => (m.pass ? "green" : m.kind === "number" ? "number" : (toneFor(m.ref) as Filter));
   const count = (f: Filter) => refs.filter((m) => f === "all" || group(m) === f).length;
-  const isDimmed = (m: Mark) => filter !== "all" && group(m) !== filter;
+  const isDimmed = () => false;      // 거르개를 골라도 원문 표시는 모두 그대로 (2026-11-20 사용자 요청). 거르개는 오른쪽 패널 이동에만 쓴다
 
   useEffect(() => {
     let dead = false;
@@ -156,10 +164,10 @@ export function DocumentView({ reportId, result, selected, onSelect, jump }: {
 
   const FILTERS: { id: Filter; label: string; color: string }[] = [
     { id: "all", label: "전체", color: "#5C626B" },
-    { id: "red", label: "수정", color: TONE.red.ink },
-    { id: "orange", label: "확인 필요", color: TONE.orange.ink },
-    { id: "green", label: "유지", color: TONE.green.ink },
-    { id: "number", label: "숫자 문제", color: TONE.red.line },
+    { id: "red", label: "수정", color: TONE.red.line },
+    { id: "orange", label: "확인 필요", color: "#F79009" },
+    { id: "green", label: "유지", color: TONE.green.line },
+    { id: "number", label: "숫자 문제", color: NUMBER_COLOR.line },
   ];
 
   if (!doc.has_pdf) return <p className={s.muted}>이 분석에는 원문 PDF가 연결되어 있지 않습니다.</p>;
@@ -169,13 +177,13 @@ export function DocumentView({ reportId, result, selected, onSelect, jump }: {
       <div className={s.toolbar}>
         <div className={s.segmented} role="group" aria-label="표시할 판정">
           {FILTERS.map((f) => (
-            <button key={f.id} type="button" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
+            <button key={f.id} type="button" aria-pressed={filter === f.id} onClick={() => onFilter(f.id)}>
               <span className={s.swatch} style={{ background: f.color }} />
               {f.label} {count(f.id)}
             </button>
           ))}
         </div>
-        <span className={s.toolbarHint}>칠해진 곳을 누르면 오른쪽에 이의와 배심원 표가 열립니다</span>
+        <span className={s.toolbarHint}>칸을 누르면 그 판정만 오른쪽에서 차례로 볼 수 있습니다</span>
         <span className={s.spacer} />
         <span className={s.pageIndicator} aria-live="polite"><strong>{current}</strong> / {pages}쪽</span>
         <div className={s.zoom} role="group" aria-label="원문 크기">

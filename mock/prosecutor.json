@@ -46,7 +46,7 @@
     {
       "objection_id": "O-4",
       "claim_id": "C-3",
-      "doubt_type": "빠진 위험",
+      "doubt_type": "위험 누락",
       "kind": "해석 차이",
       "already_in_report": false,
       "text": "전방 수요가 기대보다 약한 경우를 다루지 않았다. 리포트가 가정한 시장 성장률 15%는 같은 쪽에 인용된 업계 전망 8~10%보다 높다.",

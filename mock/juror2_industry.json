@@ -1,0 +1,12 @@
+{
+  "votes": [
+    {
+      "objection_id": "J-behavioral",
+      "vote": "동의",
+      "view": "(mock) 업황 전망 8~10%와 리포트 가정 15%가 같은 리포트 안에서 어긋난다",
+      "reason": "(mock) 이의에 동의한다. 단정 표현이 업계 전망과 다른 가정을 감춘다 (1쪽)",
+      "importance": "중"
+    }
+  ],
+  "extra_objection": null
+}

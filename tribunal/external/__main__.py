@@ -2,6 +2,8 @@
 
 python -m tribunal.external <분석 결과 폴더>              # 키가 있는 것 모두 (DART, KRX, ECOS, KOSIS)
 python -m tribunal.external <분석 결과 폴더> --only krx   # 하나만
+python -m tribunal.external <분석 결과 폴더> --only dart --pool   # DART + 공시 통째 짝 찾기 (Haiku 호출, 유료)
+python -m tribunal.external <분석 결과 폴더> --only dart --saved  # 저장된 대조 결과로 다시 합치기 (무료, 지금 규칙으로 틀린 재료 짝을 뺀다)
 """
 from __future__ import annotations
 
@@ -29,7 +31,7 @@ def main(argv) -> int:
         return 2
     offline = "--offline" in argv
     checks = {n: (ALL[n][0], ALL[n][1](offline=offline)) for n in names}
-    exts = common.augment(Path(args[0]), checks)
+    exts = common.augment(Path(args[0]), checks, pool="--pool" in argv, saved="--saved" in argv)   # --pool: DART 통째 짝 찾기 (AI 호출, 유료)
     for n, ext in exts.items():
         common.print_report(n, ext)
     return 1 if any(e.get("error") and e.get("enabled") for e in exts.values()) else 0

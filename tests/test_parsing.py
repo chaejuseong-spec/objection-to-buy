@@ -54,20 +54,28 @@ def test_자산은_부채와_자본의_합():
 
 
 def test_틀린_추가_이의만_빼고_표는_살린다():
-    data = {"votes": [{"objection_id": "O-1", "vote": "타당", "reason": "r"},
-                      {"objection_id": "O-2", "vote": "확인불가", "reason": "r"}],
+    data = {"votes": [{"objection_id": "O-1", "vote": "동의", "importance": "상", "reason": "r"},
+                      {"objection_id": "O-2", "vote": "판단불가", "reason": "r"}],
             "extra_objection": {"claim_id": "C-1", "doubt_type": "일회성 손익", "text": "t", "kind": "사실 오류"}}
     data = llm._normalize(data)
     with pytest.raises(Exception):
         JurorOut.model_validate(data)
     fixed, dropped = llm._salvage(data, JurorOut)
     assert dropped == 1 and fixed.extra_objection is None
-    assert [v.vote for v in fixed.votes] == ["타당", "확인 불가"]
+    assert [v.vote for v in fixed.votes] == ["동의", "판단 불가"] and fixed.votes[0].importance == "상"
 
 
 def test_띄어쓰기만_다른_값은_바로잡는다():
-    assert llm._normalize({"kind": "사실오류", "vote": "타당함", "text": "사실오류"}) == \
-        {"kind": "사실 오류", "vote": "타당", "text": "사실오류"}     # 정해진 칸만 바꾼다
+    assert llm._normalize({"kind": "사실오류", "vote": "동의함", "importance": "높음", "text": "사실오류"}) == \
+        {"kind": "사실 오류", "vote": "동의", "importance": "상", "text": "사실오류"}     # 정해진 칸만 바꾼다
+
+
+def test_예전_표_이름과_틀린_중요도도_읽는다():
+    from tribunal.schemas import Vote
+    assert Vote.model_validate({"objection_id": "O-1", "vote": "타당", "reason": "r"}).vote == "동의"
+    v = Vote.model_validate({"objection_id": "O-1", "vote": "과장", "importance": "상", "reason": "r"})
+    assert v.vote == "동의" and v.importance == "하"                  # 예전 과장 = 맞지만 영향이 작다
+    assert Vote.model_validate({"objection_id": "O-1", "vote": "동의", "importance": "중간", "reason": "r"}).importance is None   # 미확인
 
 
 @pytest.mark.parametrize("given,expected", [("Buy", "매수"), ("BUY (유지)", "매수"), ("매수 유지", "매수"), ("Hold", "보유"), ("중립", "보유"), ("Sell", "매도")])
@@ -105,3 +113,11 @@ def test_AI가_식에_숫자를_직접_적으면_버린다(tmp_path):
     kept, stats = verify(rep, pdf)
     assert [k.check_id for k in kept.checks] == ["K-2", "K-3"]           # 100, 10억 같은 자릿수 맞춤은 허용
     assert "숫자를 직접 적음" in stats["dropped"]["checks"][0]["reason"]
+
+
+
+def test_예전_의심_유형_빠진_위험은_위험_누락으로_읽는다():
+    from tribunal.schemas import Objection
+    o = Objection.model_validate({"objection_id": "O-1", "claim_id": None, "doubt_type": "빠진 위험", "text": "t", "kind": "해석 차이"})
+    assert o.doubt_type == "위험 누락"
+    assert llm._normalize({"doubt_type": "빠진위험"}) == {"doubt_type": "위험 누락"}

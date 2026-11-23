@@ -31,7 +31,7 @@ def compute_marks(pdf: Path, report, objections, ev: dict, nc: dict) -> Tuple[Li
                           "page": f["page"], "rects": [[round(v, 5) for v in r] for r in f["rects"]]})
     ov = {o["objection_id"]: o["verdict"] for o in ev["objection_verdicts"]}
     for o in objections:                   # 이의가 가리킨 원문 문장 (코드가 원문에 있다고 확인한 것만)
-        if not o.quote_found or ov.get(o.objection_id) == rules.KEEP:
+        if not o.quote_found:              # '유지'도 칠한다: 화면이 주장 문장을 칠하지 않게 되어(2026-11-20) 지적 표시만 남는다
             continue
         for f in locate(doc, o.quote, o.page)[:1]:
             marks.append({"ref": o.objection_id, "kind": "objection", "hue": HUE[ov[o.objection_id]],
@@ -77,3 +77,24 @@ def pass_marks(pdf: Path, report, result: dict) -> List[dict]:
             out.append({"ref": x["check_id"], "kind": "number", "hue": "green", "pass": True,
                         "page": f["page"], "rects": [[round(v, 5) for v in r] for r in f["rects"]]})
     return out
+
+
+def add_context_rects(pdf: Path, result: dict) -> int:
+    """지적 표시에 그 문장 전체의 위치(ctx)를 더한다. 화면은 문장은 연하게, 짚은 구절은 진하게 칠한다 (2026-11-20).
+    quote_ctx(코드가 원문에서 잘라 둔 문장 전체)가 짚은 구절보다 길 때만. 더한 개수를 돌려준다."""
+    objs = {o["id"]: o for c in result.get("claims", []) for o in c.get("objections", [])}
+    objs.update({o["id"]: o for o in result.get("other_objections") or []})
+    pymupdf.TOOLS.mupdf_display_errors(False)
+    doc = pymupdf.open(pdf)
+    n = 0
+    for m in result.get("marks", []):
+        o = objs.get(m["ref"]) if m.get("kind") == "objection" else None
+        c = (o or {}).get("quote_ctx")
+        if not c or not (c.get("before") or c.get("after")):
+            continue
+        sentence = " ".join(x for x in (c.get("before"), c.get("quote"), c.get("after")) if x)
+        found = [f for f in locate(doc, sentence, c.get("page") or m["page"]) if f["page"] == m["page"]][:1]
+        if found:
+            m["ctx"] = [[round(v, 5) for v in r] for r in found[0]["rects"]]
+            n += 1
+    return n

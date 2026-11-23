@@ -33,10 +33,25 @@ ACCOUNTS = [
     ("자산총계", ["자산총계", "자산 총계", "총자산"], ["ifrs-full_Assets"], ["자산총계"], ("BS",)),
     ("부채총계", ["부채총계", "부채 총계", "총부채"], ["ifrs-full_Liabilities"], ["부채총계"], ("BS",)),
     ("자본총계", ["자본총계", "자본 총계", "총자본"], ["ifrs-full_Equity"], ["자본총계"], ("BS",)),
+    # 보험사 (2026-11-21). 리포트의 '보험손익'은 공시의 '보험서비스결과'
+    ("보험손익", ["보험손익", "보험서비스결과", "보험서비스손익"], ["ifrs-full_InsuranceServiceResult"], ["보험서비스결과", "보험손익"], ("IS", "CIS")),
+    ("투자손익", ["투자손익"], ["dart_InvestmentIncomeExpenses"], ["투자손익"], ("IS", "CIS")),
+    # CSM 은 재무제표 본문에 없고 주석에만 있다 -> XBRL 원본 파일에서 읽는다 (아래 XBRL). 긴 말을 먼저 찾는다
+    ("신계약 CSM", ["신계약 CSM", "신계약CSM"], [], [], ("XBRL",)),
+    ("CSM 상각액", ["CSM 상각액", "CSM상각액", "CSM 상각", "CSM상각"], [], [], ("XBRL",)),
+    ("CSM 잔액", ["CSM 잔액", "CSM잔액", "보유 CSM", "보유CSM", "CSM 총액"], [], [], ("XBRL",)),
 ]
+# XBRL 태그: (이름, 잔액|기간 값, 더 붙는 축). 공통 축은 연결/별도 + 발행한 보험계약(출재 재보험 제외), 상품군·만기 구분 없는 합계
+XBRL = {
+    "신계약 CSM": ("IncreaseDecreaseThroughEffectsOfContractsInitiallyRecognisedInPeriodInsuranceContractsLiabilityAsset", "flow",
+                  {"InsuranceContractsByComponentsAxis": "ContractualServiceMarginMember"}),
+    "CSM 상각액": ("InsuranceRevenueContractualServiceMarginRecognisedInProfitOrLossBecauseOfTransferOfServices", "flow", {}),
+    "CSM 잔액": ("ContractualServiceMargin", "stock", {}),
+}
+XBRL_FS = {"CFS": "ConsolidatedMember", "OFS": "SeparateMember"}
 UNIT_MULT = {"원": 1, "천원": 1e3, "백만원": 1e6, "억원": 1e8, "십억원": 1e9, "조원": 1e12}
 _ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
-_EST = re.compile(r"(20\d\d|'?\d\d)\s*[EeFfPp](?![a-z])|예상|전망|추정|목표|컨센서스|가이던스")
+_EST = re.compile(r"(20\d\d|'?\d\d)\s*[EeFfPp](?![A-Za-z])|예상|전망|추정|목표|컨센서스|가이던스")
 _QTR = re.compile(r"[1-4]\s*Q|분기|반기|상반기|하반기|[12]H|H[12]")
 _RATIO = re.compile(r"률|율|마진|성향|비중|증가|감소|성장|YoY|QoQ|%|배$")
 _NOW = re.compile(r"(^|\s)(현|현재|최근|직전|당기)(\s|$)")
@@ -51,6 +66,7 @@ def _norm(s: str) -> str:
 REPRT = {1: "11013", 2: "11012", 3: "11014", 4: "11011"}       # 1분기, 반기, 3분기, 사업보고서
 _Q = re.compile(r"(?<![\d.])([1-4])\s*Q\s*'?(\d{2,4})|'?(\d{2,4})\s*[.\s]?\s*([1-4])\s*Q(?![a-z])|'?(\d{2,4})\s*년?\s*([1-4])\s*분기")
 _H = re.compile(r"'?(\d{2,4})\s*년?\s*(상반기|1H|H1|반기)|(1H|H1)\s*'?(\d{2,4})")
+_MEND = re.compile(r"(20\d\d)\s*년?\s*[.]?\s*(3|6|9|12)\s*월\s*말")      # 2026년 6월 말 -> 그 분기 말 잔액
 _CUM = re.compile(r"누적|누계|YTD|1~[2-4]\s*Q|1~[2-4]\s*분기|[1-9]\s*~\s*[1-9]\s*월")
 
 
@@ -61,6 +77,10 @@ def _yy(s: str) -> int:
 
 def quarter(text: str) -> Optional[dict]:
     """'1Q26', '2026년 1분기', '26.2Q', '2026년 상반기', '3Q26 누적' -> {'q': 1~4, 'year', 'cum': 누적 값인가, 'label'}"""
+    m = _MEND.search(text)
+    if m:
+        y, mo = int(m.group(1)), int(m.group(2))
+        return {"q": mo // 3, "year": y, "cum": True, "label": f"{y}년 {mo}월 말"}
     m = _H.search(text)
     if m:
         y = _yy(m.group(1) or m.group(4))
@@ -87,7 +107,7 @@ def classify(row: DataRow, target_name: str) -> dict:
     if _EST.search(clean_ctx):
         return {"skip": "추정치라 공시와 대조할 값이 없음"}
     per = None
-    if _QTR.search(clean_ctx):
+    if _QTR.search(clean_ctx) or _MEND.search(clean_ctx):
         if "하반기" in clean_ctx or re.search(r"2H|H2", clean_ctx):
             return {"skip": "하반기 값은 공시에 따로 없어 대조하지 않음"}
         per = quarter(clean_ctx)
@@ -107,7 +127,7 @@ def classify(row: DataRow, target_name: str) -> dict:
         year_how = "현재 표기" if _NOW.search(item) else "추정"   # 연도가 없으면 run() 이 직전 결산연도를 넣는다
     fs = "CFS" if "연결" in item else "OFS" if "별도" in item else None
     head = item.split(acc[1])[0]
-    head = re.sub(r"연결|별도|(20\d\d|'\d\d)\s*년?|FY|[1-4]\s*Q\s*'?\d{2,4}|\d{2,4}\s*년?\s*[1-4]\s*분기|상반기|반기", " ", head).strip()
+    head = re.sub(r"연결|별도|(20\d\d|'\d\d)\s*년?|FY|(3|6|9|12)\s*월\s*말|[1-4]\s*Q\s*'?\d{2,4}|\d{2,4}\s*년?\s*[1-4]\s*분기|상반기|반기", " ", head).strip()
     company = None if not head or _norm(head) == _norm(target_name) else head
     return {"account": acc[0][0], "year": year, "fs": fs, "company": company, "period": per, "year_how": year_how}
 
@@ -137,7 +157,8 @@ def _tolerance(row: DataRow, mult: float) -> float:
     v = _norm(row.value)
     for word, mag in (("만", 1e4), ("억", 1e8), ("조", 1e12)):   # 값 안에 쓴 가장 작은 단위
         if word in v:
-            return mag * mult
+            d = re.search(r"\.(\d+)" + word, v)           # '13.74조' -> 0.01조
+            return mag * (10 ** -len(d.group(1)) if d else 1.0) * mult
     m = re.search(r"\.(\d+)", v)
     return (10 ** -len(m.group(1)) if m else 1.0) * mult
 
@@ -207,6 +228,41 @@ def _period_amount(dart: Dart, corp: dict, year: int, fs: str, account: str, per
     return acc, res, year_amt - cum3, "사업보고서 연간 값에서 3분기 보고서 누적 값을 뺀 값"
 
 
+def _quarter_end(year: int, q: int) -> str:
+    return f"{year}-{q * 3:02d}-{[31, 30, 30, 31][q - 1]}"
+
+
+def _xbrl_amount(dart: Dart, corp: dict, year: int, fs: str, account: str, per: Optional[dict]):
+    """보험사 CSM: 정기보고서의 XBRL 원본에서 (줄, 응답, 금액, 설명) 또는 None.
+    잔액은 그 분기 말 값, 기간 값은 연초부터 누적(분기 단독은 3개월). 4분기 단독은 공시에 없어 None."""
+    q = per["q"] if per else 4
+    filings = dart.annual_filings(corp["corp_code"], year) if q == 4 else dart.period_filings(corp["corp_code"], year, q * 3)
+    if not filings:
+        return None
+    rno = filings[-1]["rcept_no"]                    # 정정이 있으면 마지막 것 (재무제표 조회와 같게)
+    res = dart.xbrl_facts(rno, REPRT[q])
+    tag, kind, extra = XBRL[account]
+    end = _quarter_end(year, q)
+    want = {"ConsolidatedAndSeparateFinancialStatementsAxis": XBRL_FS[fs],
+            "DisaggregationOfInsuranceContractsAxis": "InsuranceContractsIssuedMember", **extra}
+    if kind == "stock":
+        start, note = None, ""
+    elif not per or per["cum"] or q == 1:
+        start, note = f"{year}-01-01", ("연초부터 누적한 값" if per and q in (2, 3) else "")
+    elif q in (2, 3):
+        start, note = f"{year}-{q * 3 - 2:02d}-01", ""
+    else:
+        return None
+    for f in res.get("facts", []):
+        if f["name"] != tag or f["dims"] != want:
+            continue
+        if (kind == "stock" and f.get("instant") == end) or (kind == "flow" and f.get("start") == start and f.get("end") == end):
+            acc = {"rcept_no": rno, "sj_nm": "재무제표 주석", "account_nm": f"{account} (XBRL {tag})", "thstrm_nm": "",
+                   "_api": "재무제표 원본 파일(XBRL)"}
+            return acc, res, f["value"], note
+    return None
+
+
 # ---------- 대조 한 건 ----------
 def _result(cid: str, row: DataRow, name: str, status: str, reason: str, **extra) -> dict:
     return make_result("dart", cid, row, name, status, reason, **extra)
@@ -264,7 +320,7 @@ def check_row(dart: Dart, row: DataRow, info: dict, target: dict, report_date: s
     amt: Dict[str, float] = {}
     calc_note = ""
     for fs in tries:
-        hit = _period_amount(dart, corp, year, fs, account, per)
+        hit = (_xbrl_amount if account in XBRL else _period_amount)(dart, corp, year, fs, account, per)
         if hit:
             got[fs] = (hit[0], hit[1])
             amt[fs] = hit[2]
@@ -299,14 +355,15 @@ def check_row(dart: Dart, row: DataRow, info: dict, target: dict, report_date: s
                 acc, res = next(iter(got.values()))
                 return _result(cid, row, name, UNVERIFIABLE,
                                f"리포트에 연결/별도 표기가 없고 어느 쪽과도 맞지 않아 판단하지 않았습니다 (공시: {vals}).",
-                               source=_source(dart, corp, year, next(iter(got)), acc, res, report_date, per=per),
+                               source=_source(dart, corp, year, next(iter(got)), acc, res, report_date, per=per,
+                                              api=acc.get("_api", "단일회사 전체 재무제표")),
                                _group=group, _open=True)
     acc, res = got[fs]
     official = amt[fs]
     if year_how == "추정" and diffs[fs] > tol and abs(won - official) / abs(official or 1) > NEAR_MAX:
         return _result(cid, row, name, UNVERIFIABLE, f"리포트에 기준 연도가 없고, 직전 결산연도({year}년) 공시 값({_fmt(official, row, mult)})과도 크게 달라 "
                        "어느 연도의 값인지 알 수 없어 판단하지 않았습니다.")
-    src = _source(dart, corp, year, fs, acc, res, report_date, per=per)
+    src = _source(dart, corp, year, fs, acc, res, report_date, per=per, api=acc.get("_api", "단일회사 전체 재무제표"))
     diff_pct = round(abs(won - official) / abs(official) * 100, 3) if official else None
     base = dict(source=src, computed=_fmt(official, row, mult), diff_pct=diff_pct, timing=src["timing"],
                 name=f"{corp['corp_name']} {when} {FS_NAME[fs]} {account}, 공시 대조",
@@ -485,6 +542,95 @@ def check_dividend(dart: Dart, row: DataRow, info: dict, target: dict, report_da
     return _result(cid, row, name, UNVERIFIABLE, f"지금 공시 값({fmt(official)})과 다르지만, 리포트 작성 당시 공개된 값인지 확인할 수 없습니다.", **base)
 
 
+# ---------- 보험사 지급여력비율 (K-ICS). 재무제표가 아니라 사업의 내용 표에 있다 (2026-11-21) ----------
+_KICS = re.compile(r"K-?ICS|지급여력\s*비율|킥스", re.I)
+
+
+def classify_kics(row: DataRow) -> Optional[dict]:
+    """지급여력비율이 아니면 None. 대조할 수 없으면 {'skip': 이유}, 할 수 있으면 {'year', 'period'}"""
+    item = row.item or ""
+    if not _KICS.search(item):
+        return None
+    ctx = " ".join(_ISO.sub(" ", x or "") for x in (item, row.as_of, row.basis))
+    if _EST.search(ctx):
+        return {"skip": "추정치라 공시와 대조할 값이 없음"}
+    if re.search(r"기본\s*자본", item):
+        return {"skip": "기본자본 K-ICS 비율은 사업·반기보고서에 없어 대조하지 않음 (공시에는 전체 지급여력비율만 있음)"}
+    if re.search(r"경과\s*조치|적용\s*전|요구\s*자본|가용\s*자본|목표|민감", item):
+        return {"skip": "전체 지급여력비율이 아닌 값이라 대조하지 않음"}
+    per = quarter(ctx) if (_QTR.search(ctx) or _MEND.search(ctx)) else None
+    year = per["year"] if per else None
+    if not year:
+        m = _YEAR.search(ctx)
+        year = int(next(x for x in m.groups() if x)) if m else None
+        if year and year < 100:
+            year += 2000
+    return {"year": year, "period": per}
+
+
+def _cells(tr: str) -> List[str]:
+    return [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", td)).strip() for td in re.findall(r"<T[DH][^>]*>(.*?)</T[DH]>", tr, re.S)]
+
+
+def kics_table(text: str) -> Optional[dict]:
+    """공시 본문에서 회사 자신의 지급여력비율 표(처음 나오는 것)를 읽는다. {'cols': [머리말...], 'ratio': [값...]}"""
+    for tbl in re.findall(r"<TABLE[^>]*>(.*?)</TABLE>", text, re.S):
+        if "지급여력" not in tbl:
+            continue
+        rows = [_cells(tr) for tr in re.findall(r"<TR[^>]*>(.*?)</TR>", tbl, re.S)]
+        ratio = next((r for r in rows if r and re.match(r"지급여력\s*비율", r[0])), None)
+        if not ratio:
+            continue
+        head = next((r for r in rows if r and re.search(r"구\s*분", r[0])), rows[0])
+        return {"cols": head[1:], "ratio": ratio[1:]}
+    return None
+
+
+def _kics_col(cols: List[str], year: int, q: int) -> Optional[int]:
+    """'제 71 기 반기(FY2026 2Q)', '제 70 기(FY2025)' 같은 머리말에서 그 기간의 칸"""
+    for i, c in enumerate(cols):
+        m = re.search(r"FY\s*(20\d\d)\s*([1-4])?\s*Q?", c)
+        if not m:
+            continue
+        y, cq = int(m.group(1)), int(m.group(2)) if m.group(2) else 4
+        if y == year and cq == q:
+            return i
+    return None
+
+
+def check_kics(dart: Dart, row: DataRow, info: dict, target: dict, report_date: str, cid: str) -> dict:
+    per, year = info.get("period"), info.get("year")
+    name = f"{target['corp_name']} {per['label'] if per else f'{year}년 말' if year else ''} 지급여력비율(K-ICS), 공시 대조".replace("  ", " ")
+    if not year:
+        return _result(cid, row, name, UNVERIFIABLE, "어느 시점의 비율인지 리포트에서 찾지 못해 대조하지 않았습니다.")
+    q = per["q"] if per else 4
+    if _quarter_end(year, q) >= report_date:
+        return _result(cid, row, name, UNVERIFIABLE, f"{year}년 {q * 3}월 말은 리포트 작성일({report_date})에 아직 끝나지 않은 시점입니다.")
+    stated = parse_number(row.value, "")
+    if stated is None:
+        return _result(cid, row, name, UNVERIFIABLE, f"리포트 값 '{row.value}'를 숫자로 읽지 못했습니다.")
+    filings = dart.annual_filings(target["corp_code"], year) if q == 4 else dart.period_filings(target["corp_code"], year, q * 3)
+    if not filings:
+        return _result(cid, row, name, UNVERIFIABLE, f"{year}년 {q * 3}월 말 정기보고서를 찾지 못했습니다.")
+    rno = filings[-1]["rcept_no"]
+    tbl = kics_table(dart.document_text(rno))
+    col = _kics_col(tbl["cols"], year, q) if tbl else None
+    official = parse_number(tbl["ratio"][col], "") if tbl and col is not None and col < len(tbl["ratio"]) else None
+    acc = {"rcept_no": rno, "sj_nm": "사업의 내용", "account_nm": "지급여력비율(K-ICS)", "thstrm_nm": ""}
+    src = _source(dart, target, year, None, acc, {"fetched_at": ""}, report_date, per=per, api="공시 원문(사업의 내용)")
+    if official is None:
+        return _result(cid, row, name, UNVERIFIABLE, "공시 본문에서 그 시점의 지급여력비율을 찾지 못했습니다.", source=src)
+    m = re.search(r"\.(\d+)", row.value or "")
+    tol = 10 ** -len(m.group(1)) if m else 1.0
+    diff = abs(stated - official)
+    base = dict(source=src, computed=f"{official:g}%", diff_pct=round(diff / official * 100, 3) if official else None, timing=src["timing"])
+    if diff <= tol + 1e-9:
+        return _result(cid, row, name, MATCH, "공시 값과 같습니다(표시 자릿수 이내).", **base)
+    if src["timing"] == "작성 당시 공개":
+        return _result(cid, row, name, MISMATCH, f"리포트 작성 당시 공시된 지급여력비율({official:g}%)과 다릅니다.", **base)
+    return _result(cid, row, name, UNVERIFIABLE, f"지금 공시 값({official:g}%)과 다르지만 작성 당시 공시 값은 확인할 수 없습니다.", **base)
+
+
 # ---------- 리포트 전체 ----------
 def run(report: Report, dart: Optional[Dart] = None) -> dict:
     """돌려주는 값: {'enabled', 'provider', 'results': [...], 'skipped': [...], 'error'}"""
@@ -500,6 +646,15 @@ def run(report: Report, dart: Optional[Dart] = None) -> dict:
         n = 0
         todo = []
         for row in report.data_rows:
+            ki = classify_kics(row)
+            if ki is not None:
+                if "skip" in ki:
+                    out["skipped"].append({"rid": row.rid, "item": row.item, "why": ki["skip"]})
+                    continue
+                n += 1
+                todo.append((row, None, f"D-{n}"))
+                out["results"].append(check_kics(dart, row, ki, target, report_date, f"D-{n}"))
+                continue
             div = classify_dividend(row, report.meta.name)
             if div is not None:
                 if "skip" in div:

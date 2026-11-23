@@ -159,7 +159,7 @@ export async function readEntry(id: string): Promise<LibraryEntry | null> {
     ticker: result?.meta.ticker,
     reportDate: result?.meta.report_date,
     title: result?.meta.title,
-    grade: result?.grade.value,
+    grade: gradeName(result?.grade.value),
     note: (await readJson<{ text: string }>(path.join(d, "note.json")))?.text ?? "",
   };
 }
@@ -198,7 +198,36 @@ export async function listEntries(): Promise<LibraryEntry[]> {
 }
 
 export async function readResult(id: string): Promise<unknown | null> {
-  return readJson(path.join(dir(id), "run", "result.json"));
+  return upgradeResult(await readJson(path.join(dir(id), "run", "result.json")));
+}
+
+/* 2026-11-20 전 결과(표: 타당/과장/확인 불가, 등급: 재심리)를 새 이름으로 읽는다. 파일은 고치지 않는다.
+   예전 '과장'은 "맞지만 영향이 작다"는 뜻이라 동의 + 중요도 하로 읽는다. */
+const OLD_VOTE: Record<string, string> = { 타당: "동의", 과장: "동의", "확인 불가": "판단 불가" };
+export const gradeName = (g?: string) => (g === "재심리" ? "재검토 필요" : g);
+type Obj = { doubt_type?: string; tally?: Record<string, unknown>; votes?: { vote: string; importance?: string | null }[]; verdict_reason?: string; importance?: string | null };
+function upgradeObjection(o: Obj) {
+  const t = o.tally;
+  if (t && "타당" in t) {
+    const ok = Number(t["타당"] ?? 0), small = Number(t["과장"] ?? 0);
+    o.tally = { 동의: ok + small, 비동의: 0, "판단 불가": t["확인 불가"], 기권: t["기권"] ?? 0,
+                중요도: { 상: 0, 중: 0, 하: small, 미확인: ok } };
+  }
+  for (const v of o.votes ?? []) {
+    if (v.vote === "과장") v.importance = "하";
+    v.vote = OLD_VOTE[v.vote] ?? v.vote; v.importance ??= null;
+  }
+  if (o.doubt_type === "빠진 위험") o.doubt_type = "위험 누락";   // 2026-11-20 이름 변경
+  o.verdict_reason ??= "";
+  o.importance ??= null;
+}
+function upgradeResult<T>(r: T): T {
+  const x = r as unknown as { grade?: { value: string }; claims?: { objections: Obj[] }[]; other_objections?: Obj[] } | null;
+  if (!x) return r;
+  if (x.grade) x.grade.value = gradeName(x.grade.value) ?? x.grade.value;
+  for (const c of x.claims ?? []) c.objections.forEach(upgradeObjection);
+  (x.other_objections ?? []).forEach(upgradeObjection);
+  return r;
 }
 
 export function pdfPath(id: string) {
@@ -277,6 +306,180 @@ export async function startRun(id: string, mock = false): Promise<LibraryEntry> 
   child.unref();
   await writeJson(path.join(d, "job.json"), { startedAt: new Date().toISOString(), pid: child.pid, mock, version: currentVersion() } satisfies Job);
   return (await readEntry(id))!;
+}
+
+/** 기본 종목정보의 시세를 새로 받는다 (KRX 의 빠진 거래일만, AI 없음, 몇 초). 재무가 7일보다 오래됐으면 통째로 다시 만든다.
+ *  파이썬이 결과 파일의 company 칸을 고치고, 그 칸을 JSON 으로 돌려준다 */
+export async function refreshCompany(id: string): Promise<unknown> {
+  const run = path.join(dir(id), "run");
+  if (!existsSync(path.join(run, "result.json"))) throw new UserError("분석 결과가 없습니다.");
+  return new Promise((resolve, reject) => {
+    const child = spawn(PYTHON, ["-m", "tribunal.external.company", run, "--refresh"], {
+      cwd: PROJECT, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+    });
+    let out = "";
+    child.stdout.on("data", (b) => { out += b; });
+    child.stderr.resume();
+    const timer = setTimeout(() => { child.kill(); reject(new UserError("시세를 받는 데 너무 오래 걸립니다.")); }, 180_000);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) return reject(new UserError("시세를 새로 받지 못했습니다."));
+      try { resolve(JSON.parse(out.slice(out.indexOf("{")))); } catch { reject(new UserError("시세 응답을 읽지 못했습니다.")); }
+    });
+  });
+}
+
+/** 파이썬 한 번 돌려 JSON 받기 (종목 검색·주가 차트용) */
+function runPyJson(args: string[], timeoutMs: number, fail: string): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(PYTHON, ["-m", "tribunal.external.company", ...args], {
+      cwd: PROJECT, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+    });
+    let out = "";
+    child.stdout.on("data", (b) => { out += b; });
+    child.stderr.resume();
+    const timer = setTimeout(() => { child.kill(); reject(new UserError(`${fail} (시간 초과)`)); }, timeoutMs);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) return reject(new UserError(fail));
+      try { resolve(JSON.parse(out.slice(out.indexOf("{")))); } catch { reject(new UserError(fail)); }
+    });
+  });
+}
+const TICKER_RE = /^[0-9A-Z]{6}$/;
+
+/** 종목 검색 (2026-11-23): DART 상장사 목록에서 회사명·종목코드로. 이름이 그 글자로 시작하는 회사가 먼저 */
+export async function searchStocks(q: string): Promise<{ ticker: string; name: string }[]> {
+  const t = q.trim().replace(/\s+/g, "").toLowerCase();
+  if (!t) return [];
+  let list: { corp_name: string; stock_code: string }[] = [];
+  try {
+    list = JSON.parse(await readFile(path.join(PROJECT, ".cache", "dart", "corpcode.json"), "utf-8")).list ?? [];
+  } catch {
+    throw new UserError("상장사 목록이 아직 없습니다. 리포트를 한 번 분석하면 만들어집니다.");
+  }
+  const hits = list.filter((c) => c.stock_code.includes(t) || c.corp_name.replace(/\s+/g, "").toLowerCase().includes(t));
+  const rank = (c: { corp_name: string; stock_code: string }) =>
+    (c.stock_code === t || c.corp_name.toLowerCase() === t ? 0 : c.corp_name.toLowerCase().startsWith(t) || c.stock_code.startsWith(t) ? 1 : 2) * 100 + c.corp_name.length;
+  return hits.sort((a, b) => rank(a) - rank(b)).slice(0, 12).map((c) => ({ ticker: c.stock_code, name: c.corp_name }));
+}
+
+/** 같은 업종의 비상장 정기보고서 제출사 (DART). 업종 목록이 아직 없으면 빈 목록 */
+export async function unlistedPeers(induty: string): Promise<{ corp_code: string; name: string }[]> {
+  if (!/^[0-9A-Z]{2,6}$/.test(induty)) return [];
+  let list: Record<string, { name: string; induty: string }> = {};
+  try {
+    list = JSON.parse(await readFile(path.join(PROJECT, ".cache", "dart", "industry_unlisted.json"), "utf-8")).list ?? {};
+  } catch {
+    return [];
+  }
+  const all = Object.entries(list).map(([corp_code, v]) => ({ corp_code, ...v }));
+  for (const n of [5, 4, 3]) {                       // 같은 5자리 업종, 모자라면 앞 4·3자리
+    const hit = all.filter((x) => x.induty && induty.length >= n && x.induty.slice(0, n) === induty.slice(0, n));
+    if (hit.length >= 3 || n === 3) return hit.sort((a, b) => a.name.localeCompare(b.name, "ko")).slice(0, 40).map(({ corp_code, name }) => ({ corp_code, name }));
+  }
+  return [];
+}
+
+/** 검색한 종목의 '내 차트' (종목마다, library/_stocks/<종목코드>/charts.json) */
+export async function readStockCharts(ticker: string): Promise<unknown[]> {
+  if (!TICKER_RE.test(ticker)) return [];
+  try {
+    const v = JSON.parse(await readFile(path.join(LIBRARY, "_stocks", ticker, "charts.json"), "utf-8"));
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+export async function writeStockCharts(ticker: string, charts: unknown): Promise<void> {
+  if (!TICKER_RE.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
+  if (!Array.isArray(charts) || charts.length > 40) throw new UserError("차트는 40개까지 저장할 수 있습니다.");
+  const body = JSON.stringify(charts, null, 1);
+  if (body.length > 200_000) throw new UserError("차트 설정이 너무 큽니다.");
+  const d = path.join(LIBRARY, "_stocks", ticker);
+  await mkdir(d, { recursive: true });
+  const tmp = path.join(d, "charts.json.tmp");
+  await writeFile(tmp, body, "utf-8");
+  await rename(tmp, path.join(d, "charts.json"));
+}
+
+/** 리포트 없이 검색한 종목의 기본 종목정보 (처음 1~2분, 7일 저장, refresh 면 시세만 새로) */
+export async function stockCompany(ticker: string, refresh = false): Promise<unknown> {
+  if (!TICKER_RE.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
+  return runPyJson(["--stock", ticker, ...(refresh ? ["--refresh"] : [])], 300_000, "종목정보를 만들지 못했습니다.");
+}
+
+/** 주가 차트 자료 (받아 둔 KRX 일별 파일에서, 액면분할 보정) */
+export async function stockHistory(ticker: string): Promise<unknown> {
+  if (!TICKER_RE.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
+  return runPyJson(["--history", ticker, "260"], 300_000, "주가 자료를 받지 못했습니다.");
+}
+
+/** 차트 만들기 (2026-11-23): 리포트마다 저장한 차트 카드. 화면 설정(지표 키·회사·함께 보기·기간)만 저장하고 숫자는 저장하지 않는다 */
+export async function readCharts(id: string): Promise<unknown[]> {
+  try {
+    const v = JSON.parse(await readFile(path.join(dir(id), "charts.json"), "utf-8"));
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+export async function writeCharts(id: string, charts: unknown): Promise<void> {
+  if (!Array.isArray(charts) || charts.length > 40) throw new UserError("차트는 40개까지 저장할 수 있습니다.");
+  const ok = charts.every((x) => x && typeof x === "object" && typeof (x as { id?: unknown }).id === "string"
+    && Array.isArray((x as { keys?: unknown }).keys) && Array.isArray((x as { peers?: unknown }).peers));
+  if (!ok) throw new UserError("차트 설정이 올바르지 않습니다.");
+  const body = JSON.stringify(charts, null, 1);
+  if (body.length > 200_000) throw new UserError("차트 설정이 너무 큽니다.");
+  if (!existsSync(dir(id))) throw new UserError("리포트를 찾지 못했습니다.");
+  const tmp = path.join(dir(id), "charts.json.tmp");
+  await writeFile(tmp, body, "utf-8");
+  await rename(tmp, path.join(dir(id), "charts.json"));
+}
+
+/** 화면의 표를 엑셀 파일로 (사용자 서식 규칙, tribunal/external/excel.py). 숫자는 화면이 보낸 그대로 */
+export async function exportXlsx(payload: unknown): Promise<Buffer> {
+  const body = JSON.stringify(payload);
+  if (body.length > 2_000_000) throw new UserError("내보낼 자료가 너무 큽니다.");
+  return new Promise((resolve, reject) => {
+    const child = spawn(PYTHON, ["-m", "tribunal.external.excel"], {
+      cwd: PROJECT, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+    });
+    const out: Buffer[] = [];
+    child.stdout.on("data", (b: Buffer) => out.push(b));
+    child.stderr.resume();
+    const timer = setTimeout(() => { child.kill(); reject(new UserError("엑셀 파일을 만드는 데 너무 오래 걸립니다.")); }, 60_000);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) return reject(new UserError("엑셀 파일을 만들지 못했습니다."));
+      resolve(Buffer.concat(out));
+    });
+    child.stdin.end(body, "utf-8");
+  });
+}
+
+/** 동종사 하나의 재무 추이 (화면에서 체크할 때). 파이썬이 7일 저장해 두므로 두 번째부터는 빠르다 */
+export async function peerSeries(ticker: string, fisis?: string, corp?: string): Promise<unknown> {
+  // fisis = "H:0010597" (금감원 업종 코드:회사 코드) 이면 금감원 자료(비상장 포함), corp = DART 고유번호(비상장 정기보고서 제출사), 아니면 상장사
+  const m = fisis ? /^([A-Z]):([0-9]{5,10})$/.exec(fisis) : null;
+  if (fisis && !m) throw new UserError("회사 코드가 올바르지 않습니다.");
+  if (corp && !/^[0-9]{8}$/.test(corp)) throw new UserError("회사 코드가 올바르지 않습니다.");
+  if (!m && !corp && !/^[0-9A-Z]{6}$/.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
+  const args = m ? ["--fisis-peer", m[1], m[2]] : corp ? ["--peer-corp", corp] : ["--peer", ticker];
+  return new Promise((resolve, reject) => {
+    const child = spawn(PYTHON, ["-m", "tribunal.external.company", ...args], {
+      cwd: PROJECT, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+    });
+    let out = "";
+    child.stdout.on("data", (b) => { out += b; });
+    child.stderr.resume();
+    const timer = setTimeout(() => { child.kill(); reject(new UserError("동종사 자료를 받는 데 너무 오래 걸립니다.")); }, 300_000);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) return reject(new UserError("동종사 자료를 받지 못했습니다."));
+      try { resolve(JSON.parse(out.slice(out.indexOf("{")))); } catch { reject(new UserError("동종사 자료를 읽지 못했습니다.")); }
+    });
+  });
 }
 
 export async function removeEntry(id: string) {

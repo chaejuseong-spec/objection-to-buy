@@ -13,7 +13,7 @@ const serif = Hahmlet({
 
 export const metadata: Metadata = {
   title: "매수에 이의 있습니다!",
-  description: "리서치 리포트를 올리면 AI 리스크 검토자와 배심원이 반대신문을 하는 검증 작업대",
+  description: "기업분석 리포트를 올리면 AI 리스크 검토자와 배심원이 투자 논리를 따져 묻는 검증 작업대",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

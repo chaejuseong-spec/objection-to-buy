@@ -1,7 +1,7 @@
 "use client";
 
 // 화면 틀: 상단 바, 왼쪽 사이드바(올리기, 보관함, 리포트 안 이동), 리포트 머리글과 탭
-import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import type { LibraryEntry } from "@/lib/types";
 import { Chevron, Spinner, Verdict } from "./primitives";
 import { toneOf, TONE } from "./tone";
@@ -10,13 +10,16 @@ import s from "./workspace.module.css";
 export type Section = "summary" | "document" | "figures" | "records" | "journal" | "grading";
 
 export const SECTIONS: { id: Section; label: string }[] = [
+  { id: "figures", label: "기본 종목정보" },
   { id: "summary", label: "리포트 요약" },
-  { id: "figures", label: "수치와 도표" },
   { id: "document", label: "원문에서 보기" },
-  { id: "records", label: "문제 목록" },
+  { id: "records", label: "검토 과정" },
   { id: "journal", label: "나의 판단 기록" },
   { id: "grading", label: "채점" },
 ];
+
+/** 기본 종목정보 탭의 하위 메뉴 (왼쪽 목록에서 그 탭 바로 아래 한 칸 들여 보인다, 2026-11-22) */
+export interface SubNav { items: { id: string; label: string }[]; current: string; onSelect: (id: string) => void }
 
 export const displayName = (e: LibraryEntry) => e.company ?? e.fileName.replace(/\.pdf$/i, "");
 
@@ -26,9 +29,74 @@ const Crumb = () => (
   </svg>
 );
 
-export function TopBar({ crumbs, recordHref, onBrand }: { crumbs: string[]; recordHref?: string; onBrand: () => void }) {
+const PanelIcon = ({ side }: { side: "left" | "right" }) => (
+  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2" />
+    <path d={side === "left" ? "M7.5 4v12" : "M12.5 4v12"} />
+  </svg>
+);
+export interface PanelSwitch { open: boolean; onToggle: () => void }
+
+/** 종목 검색 (2026-11-23): 회사명·종목코드로 상장사를 찾아 기본 종목정보를 연다. 비어 있을 때 누르면 최근 본 종목 */
+export interface StockPick { ticker: string; name: string }
+const RECENT_KEY = "ws-recent-stocks";
+export function loadRecentStocks(): StockPick[] {
+  try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); return Array.isArray(v) ? v.slice(0, 8) : []; } catch { return []; }
+}
+export function rememberStock(x: StockPick) {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify([x, ...loadRecentStocks().filter((y) => y.ticker !== x.ticker)].slice(0, 8))); } catch { /* 무시 */ }
+}
+function StockSearch({ onPick }: { onPick: (x: StockPick) => void }) {      // 왼쪽 목록 맨 위 (리포트 올리기 위)
+  const [q, setQ] = useState("");
+  const [items, setItems] = useState<StockPick[]>([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [recent, setRecent] = useState<StockPick[]>([]);
+  useEffect(() => {
+    const t = q.trim();
+    if (!t) return;
+    let off = false;
+    const timer = setTimeout(() => {
+      fetch(`/api/stocks/search?q=${encodeURIComponent(t)}`).then((r) => r.json())
+        .then((b) => { if (!off) { setItems(Array.isArray(b.items) ? b.items : []); setActive(0); } }).catch(() => {});
+    }, 180);
+    return () => { off = true; clearTimeout(timer); };
+  }, [q]);
+  const list = q.trim() ? items : recent;
+  const pick = (x: StockPick) => { rememberStock(x); setQ(""); setItems([]); setOpen(false); onPick(x); };
+  return (
+    <div className={`${s.stockSearch} ${s.stockSearchRail}`} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+      <input type="search" role="combobox" aria-expanded={open && list.length > 0} aria-controls="stock-list" aria-label="종목 검색"
+             placeholder="종목 검색 (회사명, 종목코드)" value={q}
+             onFocus={() => { setRecent(loadRecentStocks()); setOpen(true); }}
+             onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+             onKeyDown={(e) => {
+               if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, list.length - 1)); }
+               if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
+               if (e.key === "Enter" && list[active]) { e.preventDefault(); pick(list[active]); }
+               if (e.key === "Escape") setOpen(false);
+             }} />
+      {open && list.length > 0 && (
+        <ul id="stock-list" role="listbox" className={s.stockList}>
+          {!q.trim() && <li className={s.stockListHead} aria-hidden="true">최근 본 종목</li>}
+          {list.map((x, i) => (
+            <li key={x.ticker} role="option" aria-selected={i === active}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(x)}>{x.name}<small>{x.ticker}</small></button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function TopBar({ crumbs, recordHref, onBrand, rail, insp }: { crumbs: string[]; recordHref?: string; onBrand: () => void; rail?: PanelSwitch; insp?: PanelSwitch }) {
   return (
     <header className={s.topbar}>
+      {rail && (
+        <button type="button" className={s.panelToggle} aria-expanded={rail.open} aria-label={rail.open ? "왼쪽 목록 닫기" : "왼쪽 목록 열기"}
+                title={rail.open ? "왼쪽 목록 닫기" : "왼쪽 목록 열기"} onClick={rail.onToggle}><PanelIcon side="left" /></button>
+      )}
       <button type="button" className={s.brand} onClick={onBrand} title="소개 화면 다시 보기">
         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none">
           <rect x="3" y="2.5" width="11" height="15" stroke="#1A1D21" strokeWidth="1.5" />
@@ -49,9 +117,13 @@ export function TopBar({ crumbs, recordHref, onBrand }: { crumbs: string[]; reco
       <a className={s.btn} style={{ height: 32, fontSize: 12.5, textDecoration: "none" }} href="/guide">설명서</a>
       {recordHref ? (
         <a className={s.btn} style={{ height: 32, fontSize: 12.5, textDecoration: "none" }} href={recordHref} download>
-          평가기록지 받기
+          평가 기록지 받기
         </a>
       ) : null}
+      {insp && (
+        <button type="button" className={s.panelToggle} aria-expanded={insp.open} aria-label={insp.open ? "오른쪽 패널 닫기" : "오른쪽 패널 열기"}
+                title={insp.open ? "오른쪽 패널 닫기" : "오른쪽 패널 열기"} onClick={insp.onToggle}><PanelIcon side="right" /></button>
+      )}
     </header>
   );
 }
@@ -68,12 +140,15 @@ function RowState({ e }: { e: LibraryEntry }) {
 }
 
 export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, onUpload, uploading, uploadError, section, onSection, navMeta, showNav,
-                         customOrder, onMove, onResetOrder, onDelete, onNote }: {
+                         customOrder, onMove, onResetOrder, onDelete, onNote, sub, onStock, stockNav }: {
   entries: LibraryEntry[]; total: number; query: string; onQuery: (q: string) => void; selectedId: string | null; onSelect: (id: string) => void;
   onUpload: (f: File) => void; uploading: boolean; uploadError: string | null;
   section: Section; onSection: (s: Section) => void; navMeta: Partial<Record<Section, string>>; showNav: boolean;
   customOrder: boolean; onMove: (id: string, to: number) => void; onResetOrder: () => void;
   onDelete: (e: LibraryEntry) => void; onNote: (id: string, text: string) => void;
+  sub?: Partial<Record<Section, SubNav>>;
+  onStock?: (x: StockPick) => void;
+  stockNav?: SubNav & { name: string; ticker: string; onClose: () => void };   // 검색한 종목을 보는 중: 그 종목 메뉴
 }) {
   const [open, setOpen] = useState(false);
   // 보관함은 접힌 배너로 두고, 누르면 목록이 펼쳐진다. 리포트를 고르지 않았으면 펼쳐 둔다
@@ -100,11 +175,12 @@ export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, 
   // 선택된 메뉴의 회색 바탕이 메뉴를 바꿀 때 미끄러지듯 따라간다 (처음 나타날 때는 움직이지 않는다)
   const nav = useRef<HTMLElement>(null);
   const [mark, setMark] = useState<{ top: number; height: number; ready: boolean } | null>(null);
+  const subCurrent = sub?.[section]?.current;
   useLayoutEffect(() => {
     const el = nav.current?.querySelector<HTMLElement>('[aria-current="page"]');
     if (!el) { setMark(null); return; }
     setMark((m) => ({ top: el.offsetTop, height: el.offsetHeight, ready: !!m }));
-  }, [section, showNav, selectedId]);
+  }, [section, showNav, selectedId, subCurrent]);
 
   const drop = (ev: DragEvent) => {
     ev.preventDefault();
@@ -116,7 +192,8 @@ export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, 
   return (
     <aside className={`${s.rail} ${s.scroll}`} aria-label="리포트 탐색">
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <button type="button" className={s.btnPrimary} style={{ height: 38 }} aria-expanded={open || uploading} onClick={() => setOpen((v) => !v)}>
+        {onStock && <StockSearch onPick={onStock} />}
+        <button type="button" className={s.btnPrimary} style={{ height: 34 }} aria-expanded={open || uploading} onClick={() => setOpen((v) => !v)}>
           <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <path d="M8 3v10M3 8h10" />
           </svg>
@@ -228,6 +305,24 @@ export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, 
         </dialog>
       </section>
 
+      {stockNav && (
+        <nav className={s.railNav} aria-label={`${stockNav.name} 종목정보`}>
+          <div className={s.railNavHead}>
+            <h2>{stockNav.name}</h2>
+            <span>{stockNav.ticker} · 검색한 종목</span>
+          </div>
+          {stockNav.items.map((k) => (
+            <button key={k.id} type="button" className={s.navItem} aria-current={stockNav.current === k.id ? "page" : undefined}
+                    onClick={() => stockNav.onSelect(k.id)}>
+              <span>{k.label}</span>
+            </button>
+          ))}
+          <button type="button" className={s.textBtn} style={{ alignSelf: "flex-start", marginTop: 4 }} onClick={stockNav.onClose}>
+            {selected ? "← 리포트로 돌아가기" : "← 닫기"}
+          </button>
+        </nav>
+      )}
+
       {showNav && selected && (
         <nav ref={nav} className={s.railNav} aria-label="리포트 안에서 이동" data-indicator={mark ? "" : undefined}>
           {mark && <span className={s.navIndicator} data-ready={mark.ready || undefined} aria-hidden="true"
@@ -236,12 +331,25 @@ export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, 
             <h2>{displayName(selected)}</h2>
             <span>{selected.title ?? selected.fileName}</span>
           </div>
-          {SECTIONS.map((item) => (
-            <button key={item.id} type="button" className={s.navItem} aria-current={item.id === section ? "page" : undefined} onClick={() => onSection(item.id)}>
-              <span>{item.label}</span>
-              <span>{navMeta[item.id] ?? ""}</span>
-            </button>
-          ))}
+          {SECTIONS.map((item) => {
+            const kids = item.id === section ? sub?.[item.id] : undefined;      // 하위 메뉴가 있으면 고른 탭 아래에 한 칸 들여 보인다
+            return (
+              <Fragment key={item.id}>
+                <button type="button" className={s.navItem} data-parent={kids ? "" : undefined}
+                        aria-current={item.id === section && !kids ? "page" : undefined} aria-expanded={kids ? true : undefined}
+                        onClick={() => onSection(item.id)}>
+                  <span>{item.label}</span>
+                  <span>{navMeta[item.id] ?? ""}</span>
+                </button>
+                {kids?.items.map((k) => (
+                  <button key={k.id} type="button" className={`${s.navItem} ${s.navSub}`} aria-current={kids.current === k.id ? "page" : undefined}
+                          onClick={() => kids.onSelect(k.id)}>
+                    <span>{k.label}</span>
+                  </button>
+                ))}
+              </Fragment>
+            );
+          })}
         </nav>
       )}
 

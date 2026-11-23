@@ -27,7 +27,7 @@ export function WelcomeView({ onUpload, uploading, error }: { onUpload: (f: File
   };
   return (
     <div className={s.stage}>
-      <h2>리서치 리포트 PDF를 올리면, AI 리스크 검토자와 배심원이 주장마다 반대신문을 합니다</h2>
+      <h2>기업분석 리포트 PDF를 올리면, AI 리스크 검토자와 배심원이 투자 논리를 따져 묻습니다</h2>
       <p>리포트는 고치지 않고 평가만 합니다. 숫자는 코드가 다시 계산하고, 판정 규칙도 코드가 정합니다.</p>
       <div className={s.bigDrop} data-over={over} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={drop}>
         {uploading ? (
@@ -47,7 +47,7 @@ export function WelcomeView({ onUpload, uploading, error }: { onUpload: (f: File
       </div>
       <ol className={s.howList}>
         <li>PDF를 올립니다<span>올리기만 해서는 비용이 들지 않습니다. 쪽수와 예상 사용량을 먼저 보여줍니다.</span></li>
-        <li>비용을 확인하고 분석을 시작합니다<span>AI를 8번 부릅니다. 보통 3분에서 10분 걸리고, 그동안 다른 리포트를 볼 수 있습니다.</span></li>
+        <li>비용을 확인하고 분석을 시작합니다<span>AI를 보통 8번(배심원이 새 이의를 찾으면 최대 13번) 부릅니다. 보통 10~20분 걸리고, 그동안 다른 리포트를 볼 수 있습니다.</span></li>
         <li>결과를 읽고 내 판단을 남깁니다<span>원문 위에 판정 색이 칠해지고, 주장마다 이의와 배심원 표, 판사의 글을 볼 수 있습니다.</span></li>
       </ol>
     </div>
@@ -130,7 +130,7 @@ export function RunningView({ entry }: { entry: LibraryEntry }) {
   }, []);
   return (
     <div className={s.stage} aria-live="polite">
-      <h2>반대신문을 진행하고 있습니다</h2>
+      <h2>검토를 진행하고 있습니다</h2>
       <p>
         시작한 지 {elapsed(entry.startedAt, now)} 지났습니다. 보통 3분에서 10분 걸립니다.
         이 창을 닫거나 다른 리포트를 봐도 분석은 계속되고, 끝나면 여기에 결과가 나타납니다.

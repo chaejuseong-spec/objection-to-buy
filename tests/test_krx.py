@@ -3,7 +3,7 @@ import pytest
 
 from tribunal.external import common, krx_check
 from tribunal.external.krx import Krx, api_url
-from tribunal.schemas import Report
+from tribunal.schemas import DataRow, Report
 
 SHARES = 4_631_000
 
@@ -158,3 +158,22 @@ def test_우선주는_우선주_종목으로_찾는다():
     assert info["kind"] == "현재주가" and info["company"] is None
     info = krx_check.classify(DataRow(rid="R-4", item="가상생명 기준주가 2026-11-10 종가", value="244,500", unit="원"), "가상생명", "2026-11-10")
     assert info["kind"] == "현재주가" and info["company"] is None
+
+
+def test_띄어_쓴_상장_주식수는_회사_이름에_넣지_않는다():
+    """실제 리포트 분석 사례: '삼성생명 상장 주식수'에서 '삼성생명 상장'을 회사 이름으로 읽어 시세를 못 찾았다."""
+    for item in ("가상생명 상장 주식수", "가상생명 발행 주식수", "가상생명 총 주식수"):
+        info = krx_check.classify(DataRow(rid="R-1", item=item, value="200,000,000", unit="주"), "가상생명", "2026-11-10")
+        assert info["kind"] == "상장주식수" and info["company"] is None, item
+    info = krx_check.classify(DataRow(rid="R-2", item="가상화학 상장 주식수", value="1", unit="주"), "가상생명", "2026-11-10")
+    assert info["company"] == "가상화학"
+
+
+
+def test_단위가_원이나_주가_아니면_시세와_대조하지_않는다():
+    """실제 리포트 분석 사례: '지분 역산 할인율(11월 10일 현재주가 기준) 48.2%'를 주가로 읽었다."""
+    skip = krx_check.classify(DataRow(rid="R-1", item="가상화학 지분 역산 할인율(11월 10일 현재주가 기준)", value="48.2%", unit="%"), "가상생명", "2026-11-10")
+    assert "단위" in skip["skip"]
+    assert "skip" in krx_check.classify(DataRow(rid="R-2", item="가상생명 현재주가 대비 PBR", value="0.73", unit="배"), "가상생명", "2026-11-10")
+    for item, value, unit in (("가상생명 현재주가", "244,500", "원"), ("가상생명 시가총액", "48.9", "조원"), ("가상생명 상장주식수", "200,000,000", "주"), ("가상생명 종가", "244,500원", "")):
+        assert "skip" not in krx_check.classify(DataRow(rid="R-3", item=item, value=value, unit=unit), "가상생명", "2026-11-10"), item
