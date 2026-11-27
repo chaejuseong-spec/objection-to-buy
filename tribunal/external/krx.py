@@ -60,8 +60,13 @@ class Krx:
     def day(self, endpoint: str, day: str) -> dict:
         """하루치 전 종목. 돌려주는 값: {'rows': [...], 'fetched_at'}. 휴장일이면 rows 가 빈다."""
         f = self.cache / f"{endpoint}-{day}.json"
+        # KRX 는 그날 시세를 다음 날에야 올린다. 최근 7일 안의 빈 응답은 '아직 안 올라옴'일 수 있어 저장해도 다시 묻는다
+        # (2026-11-24: 24일 0시에 받은 23일 빈 파일 때문에 종가가 20일에 멈춰 있었다)
+        recent = day >= (date.today() - timedelta(days=7)).strftime("%Y%m%d")
         if f.exists():
-            return json.loads(f.read_text(encoding="utf-8"))
+            saved = json.loads(f.read_text(encoding="utf-8"))
+            if saved.get("rows") or not recent or self.offline:
+                return saved
         if self.offline:
             raise KrxError("오프라인 모드라 KRX를 부르지 않습니다.")
         key = self._key or get_key(KEY_ENV)
@@ -83,7 +88,7 @@ class Krx:
             raise KrxError(f"KRX가 자료 대신 안내를 보냈습니다: {msg[:80] or '알 수 없음'}")
         saved = {"rows": body.get("OutBlock_1") or [], "fetched_at": datetime.now().isoformat(timespec="seconds"),
                  "endpoint": endpoint, "day": day}
-        if saved["rows"] or date.today().strftime("%Y%m%d") > day:    # 오늘 자료가 아직 없을 때는 저장하지 않는다
+        if saved["rows"] or not recent:                               # 최근 빈 응답은 저장하지 않는다 (다음 날 올라옴)
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(json.dumps(saved, ensure_ascii=False), encoding="utf-8")
         return saved

@@ -17,13 +17,16 @@
 from __future__ import annotations
 
 import io
+import re
 import json
 import math
 import sys
+from datetime import date
 from typing import List, Optional
 
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, LineChart, Reference, Series
+from openpyxl.chart.axis import DateAxis
 from openpyxl.chart.data_source import NumFmt
 from openpyxl.chart.label import DataLabel, DataLabelList
 from openpyxl.chart.shapes import GraphicalProperties
@@ -42,12 +45,19 @@ FMT = {
     "pct": '0.0%;(0.0%);-',
     "krw": '#,##0;(#,##0);-',
     "days": '#,##0;(#,##0);-',
+    "x": '0.00;(0.00);-',
 }
 
 
+def as_date(p: str) -> Optional[date]:
+    """'2026-02-15' -> 날짜 (시장 화면 일별 자료). 그 밖은 None"""
+    m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", p or "")
+    return date(int(m[1]), int(m[2]), int(m[3])) if m else None
+
+
 def period_label(p: str) -> str:
-    """'2025' -> '2025', '2025.09' -> '3Q25'"""
-    if "." in p:
+    """'2025' -> '2025', '2025.09' -> '3Q25'. 그 밖의 이름('26.11.25', '10년', '1개월')은 그대로"""
+    if re.fullmatch(r"\d{4}\.(03|06|09|12)", p or ""):
         y, m = p.split(".")
         return f"{int(m) // 3}Q{y[2:]}"
     return p
@@ -102,6 +112,15 @@ def _axis(ax, fmt: Optional[str] = None) -> None:
         ax.numFmt = NumFmt(formatCode=fmt, sourceLinked=False)
 
 
+def _title(name: str, color: str):
+    """차트 위 작은 제목 (9pt 굵게, 차트와 겹치지 않게)"""
+    from openpyxl.chart.text import RichText, Text
+    from openpyxl.chart.title import Title
+    from openpyxl.drawing.text import CharacterProperties, Paragraph, ParagraphProperties, RegularTextRun
+    cp = CharacterProperties(latin=DFont(typeface=FONT), ea=DFont(typeface=FONT), sz=900, b=True, solidFill=color)
+    return Title(tx=Text(rich=RichText(p=[Paragraph(pPr=ParagraphProperties(defRPr=cp), r=[RegularTextRun(t=name, rPr=cp)])])), overlay=False)
+
+
 def _rgb(h: str) -> tuple:
     h = h.lstrip("#")
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
@@ -127,20 +146,26 @@ def palette(main: Optional[str]) -> tuple:
 
 
 def build(payload: dict, brand: Optional[str] = None) -> bytes:
+    """엑셀 파일. payload 하나 = 시트 하나. {'sheets': [payload, ...]} 면 같은 양식 시트 여러 장 (시장 화면, 2026-11-26)"""
+    wb = Workbook()
+    try:                                                    # 새 셀의 기본 글꼴도 맑은 고딕 9pt
+        wb._named_styles["Normal"].font = Font(name=FONT, size=9)   # noqa: SLF001
+    except Exception:                                       # noqa: BLE001
+        pass
+    for k, sp in enumerate(payload.get("sheets") or [payload]):
+        _sheet(wb.active if k == 0 else wb.create_sheet(), sp, brand)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def _sheet(ws, payload: dict, brand: Optional[str] = None) -> None:
     rows: List[dict] = payload["rows"]
     MAIN, INK, LIGHT = palette(brand)                      # noqa: N806
     periods = [period_label(p) for p in payload["periods"]]
     div, unit = money_unit(rows)
-
-    wb = Workbook()
-    ws = wb.active
     ws.title = (payload.get("sheet") or "자료")[:31]
     ws.sheet_view.showGridLines = False
-    base = Font(name=FONT, size=9)
-    try:                                                    # 새 셀의 기본 글꼴도 맑은 고딕 9pt
-        wb._named_styles["Normal"].font = base             # noqa: SLF001
-    except Exception:                                       # noqa: BLE001
-        pass
 
     navy_thick, navy_thin, rule = Side("medium", color=INK), Side("thin", color=INK), Side("thin", color=RULE)
     ws.column_dimensions["A"].width = 2
@@ -159,9 +184,14 @@ def build(payload: dict, brand: Optional[str] = None) -> bytes:
 
     # 머리글
     h = 5
-    head = ["항목", "구분", *periods]
+    # 날짜 기간(일별)은 엑셀 날짜로 적는다: 표 머리 '26.02.15', 차트 축 '26.02' (2026-11-26 사용자)
+    dates = [as_date(p) for p in payload["periods"]]
+    is_dates = bool(dates) and all(dates)
+    head = ["항목", "구분", *(dates if is_dates else periods)]
     for j, v in enumerate(head):
         cell = ws.cell(row=h, column=2 + j, value=v)
+        if is_dates and j >= 2:
+            cell.number_format = "yy.mm.dd"
         cell.font = Font(name=FONT, size=9, bold=True, color=INK)
         cell.alignment = Alignment(horizontal="left" if j < 2 else "right", vertical="center")
         cell.border = Border(top=navy_thick, bottom=navy_thin)
@@ -171,7 +201,7 @@ def build(payload: dict, brand: Optional[str] = None) -> bytes:
     for i, r in enumerate(rows):
         y = h + 1 + i
         strong = bool(r.get("strong"))
-        suffix = " (%)" if r["fmt"] == "pct" else " (원)" if r["fmt"] == "krw" else " (일)" if r["fmt"] == "days" else ""
+        suffix = " (%)" if r["fmt"] == "pct" else " (원)" if r["fmt"] == "krw" else " (일)" if r["fmt"] == "days" else " (배)" if r["fmt"] == "x" else " (주)" if r["fmt"] == "qty" else ""
         kind = "계산" if r.get("calc") else (r.get("src") or "공시")
         ws.cell(row=y, column=2, value=r["label"] + suffix)
         ws.cell(row=y, column=3, value=kind)
@@ -185,7 +215,7 @@ def build(payload: dict, brand: Optional[str] = None) -> bytes:
             else:
                 val = v
             c = ws.cell(row=y, column=first + j, value=val)
-            c.number_format = FMT["pct"] if r["fmt"] == "pct" else FMT["amount1"] if r["fmt"] == "won" and div > 1 and val is not None and abs(val) < 100 else FMT["amount"]
+            c.number_format = FMT["pct"] if r["fmt"] == "pct" else FMT["x"] if r["fmt"] == "x" else FMT["amount1"] if r["fmt"] == "won" and div > 1 and val is not None and abs(val) < 100 else FMT["amount"]
         last_row = i == len(rows) - 1
         for col in range(2, first + len(periods)):
             c = ws.cell(row=y, column=col)
@@ -210,6 +240,8 @@ def build(payload: dict, brand: Optional[str] = None) -> bytes:
     # 12 x 7 cm, 표 아래에 차례로
     together = bool(payload.get("together"))
     groups: List[List[int]] = []
+    if payload.get("no_chart"):                             # 줄이 많은 표(섹터 등락률)는 차트 없이
+        return
     if together:
         groups = [list(range(len(rows)))]
     else:
@@ -254,7 +286,8 @@ def build(payload: dict, brand: Optional[str] = None) -> bytes:
                     s.graphicalProperties = GraphicalProperties(solidFill=color[i])
                     s.graphicalProperties.line = LineProperties(noFill=True)
                 else:
-                    ln = LineProperties(solidFill=color[i], w=22225, prstDash="dash" if rows[i].get("dashed") else None)   # 1.75pt
+                    ln = LineProperties(solidFill=color[i], w=22225 if len(periods) <= 120 else 12700 if len(periods) <= 400 else 9525,   # 1.75pt, 칸 많으면 1pt·0.75pt
+                                        prstDash="dash" if rows[i].get("dashed") else None)
                     s.graphicalProperties = GraphicalProperties(ln=ln)
                     s.marker.symbol = "none"
                     s.smooth = False
@@ -276,12 +309,23 @@ def build(payload: dict, brand: Optional[str] = None) -> bytes:
             add(main, bars, True, side_l)
         else:
             add(main, lines, False, side_l)
+        if is_dates:                                        # 일별: 엑셀 날짜 축, 눈금은 몇 달마다 (12개 안팎), 글자 'yy.mm' (2026-11-26)
+            main.x_axis = DateAxis(crossAx=100)
+            main.x_axis.baseTimeUnit = "days"
+            main.x_axis.majorTimeUnit = "months"
+            span = (dates[-1].year - dates[0].year) * 12 + dates[-1].month - dates[0].month + 1
+            main.x_axis.majorUnit = next((u for u in (1, 2, 3, 6, 12, 24, 36) if span / u <= 13), 60)   # 눈금 13개 이하, 1·2·3·6·12개월 단위
+            main.y_axis.crossAx = 500
         main.set_categories(cats)
         main.title = None
         main.legend.position = "b"
         main.legend.txPr = _text(8)
         main.legend.spPr = GraphicalProperties(ln=LineProperties(noFill=True))
-        _axis(main.x_axis)
+        _axis(main.x_axis, "yy.mm" if is_dates else None)
+        if len(periods) > 14 and not is_dates:                               # 칸이 많으면 축 글자는 12개 안팎만 (2026-11-26 사용자 'A안')
+            skip = math.ceil(len(periods) / 12)
+            main.x_axis.tickLblSkip = skip
+            main.x_axis.tickMarkSkip = skip
         _axis(main.y_axis, axis_format(lfmt, step))
         main.y_axis.scaling.min, main.y_axis.scaling.max, main.y_axis.majorUnit = lo, hi, step
         main.x_axis.crosses = "autoZero"
@@ -301,18 +345,15 @@ def build(payload: dict, brand: Optional[str] = None) -> bytes:
             _axis(sec.y_axis, axis_format(rfmt, rstep))
             sec.y_axis.scaling.min, sec.y_axis.scaling.max, sec.y_axis.majorUnit = rlo, rhi, rstep
             main += sec
-        if len(g) == 1:
+        if len(g) == 1:                                     # 줄 하나: 범례 대신 차트 제목으로 이름 (코스피인지 코스닥인지 등)
             main.legend = None
+            main.title = _title(rows[g[0]].get("legend") or rows[g[0]]["label"], INK)
         main.width, main.height = 12, 7                     # cm
         if main.legend:
             main.legend.overlay = False
         main.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
         ws.add_chart(main, f"B{anchor}")
         anchor += 15                                        # 7 cm = 행 높이 15pt 기준 14~15행
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
 
 
 def main() -> int:

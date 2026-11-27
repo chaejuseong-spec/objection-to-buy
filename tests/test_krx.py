@@ -148,22 +148,22 @@ def test_승인_안_된_시장은_건너뛰고_나머지_대조는_계속한다(
 
 
 def test_우선주는_우선주_종목으로_찾는다():
-    """'삼성전자 우선주 종가'를 보통주 시세와 대조해 불일치로 잡은 오탐(실제 리포트 분석)"""
+    """'삼성전자 우선주 종가'를 보통주 시세와 대조해 불일치로 잡은 오탐(가상 숫자)"""
     from tribunal.schemas import DataRow
-    info = krx_check.classify(DataRow(rid="R-1", item="삼성전자 우선주 종가 2026-11-10", value="159,000", unit="원"), "가상생명", "2026-11-10")
+    info = krx_check.classify(DataRow(rid="R-1", item="삼성전자 우선주 종가 2026-01-05", value="100,000", unit="원"), "가상생명", "2026-01-05")
     assert info["kind"] == "현재주가" and info["company"] == "삼성전자우"
-    info = krx_check.classify(DataRow(rid="R-2", item="삼성전자 종가", value="198,900", unit="원"), "가상생명", "2026-11-10")
+    info = krx_check.classify(DataRow(rid="R-2", item="삼성전자 종가", value="120,000", unit="원"), "가상생명", "2026-01-05")
     assert info["company"] == "삼성전자"
-    info = krx_check.classify(DataRow(rid="R-3", item="가상생명 기준주가 2026-11-10", value="244,500", unit="원"), "가상생명", "2026-11-10")
+    info = krx_check.classify(DataRow(rid="R-3", item="가상생명 기준주가 2026-01-05", value="50,000", unit="원"), "가상생명", "2026-01-05")
     assert info["kind"] == "현재주가" and info["company"] is None
-    info = krx_check.classify(DataRow(rid="R-4", item="가상생명 기준주가 2026-11-10 종가", value="244,500", unit="원"), "가상생명", "2026-11-10")
+    info = krx_check.classify(DataRow(rid="R-4", item="가상생명 기준주가 2026-11-10 종가", value="50,000", unit="원"), "가상생명", "2026-11-10")
     assert info["kind"] == "현재주가" and info["company"] is None
 
 
 def test_띄어_쓴_상장_주식수는_회사_이름에_넣지_않는다():
-    """실제 리포트 분석 사례: '삼성생명 상장 주식수'에서 '삼성생명 상장'을 회사 이름으로 읽어 시세를 못 찾았다."""
+    """사례: '가상생명 상장 주식수'에서 '가상생명 상장'을 회사 이름으로 읽어 시세를 못 찾았다."""
     for item in ("가상생명 상장 주식수", "가상생명 발행 주식수", "가상생명 총 주식수"):
-        info = krx_check.classify(DataRow(rid="R-1", item=item, value="200,000,000", unit="주"), "가상생명", "2026-11-10")
+        info = krx_check.classify(DataRow(rid="R-1", item=item, value="100,000,000", unit="주"), "가상생명", "2026-11-10")
         assert info["kind"] == "상장주식수" and info["company"] is None, item
     info = krx_check.classify(DataRow(rid="R-2", item="가상화학 상장 주식수", value="1", unit="주"), "가상생명", "2026-11-10")
     assert info["company"] == "가상화학"
@@ -171,9 +171,30 @@ def test_띄어_쓴_상장_주식수는_회사_이름에_넣지_않는다():
 
 
 def test_단위가_원이나_주가_아니면_시세와_대조하지_않는다():
-    """실제 리포트 분석 사례: '지분 역산 할인율(11월 10일 현재주가 기준) 48.2%'를 주가로 읽었다."""
-    skip = krx_check.classify(DataRow(rid="R-1", item="가상화학 지분 역산 할인율(11월 10일 현재주가 기준)", value="48.2%", unit="%"), "가상생명", "2026-11-10")
+    """사례: '지분 역산 할인율(11월 10일 현재주가 기준) 30.0%'를 주가로 읽었다."""
+    skip = krx_check.classify(DataRow(rid="R-1", item="가상화학 지분 역산 할인율(11월 10일 현재주가 기준)", value="30.0%", unit="%"), "가상생명", "2026-11-10")
     assert "단위" in skip["skip"]
-    assert "skip" in krx_check.classify(DataRow(rid="R-2", item="가상생명 현재주가 대비 PBR", value="0.73", unit="배"), "가상생명", "2026-11-10")
-    for item, value, unit in (("가상생명 현재주가", "244,500", "원"), ("가상생명 시가총액", "48.9", "조원"), ("가상생명 상장주식수", "200,000,000", "주"), ("가상생명 종가", "244,500원", "")):
+    assert "skip" in krx_check.classify(DataRow(rid="R-2", item="가상생명 현재주가 대비 PBR", value="0.50", unit="배"), "가상생명", "2026-11-10")
+    for item, value, unit in (("가상생명 현재주가", "50,000", "원"), ("가상생명 시가총액", "10.0", "조원"), ("가상생명 상장주식수", "100,000,000", "주"), ("가상생명 종가", "50,000원", "")):
         assert "skip" not in krx_check.classify(DataRow(rid="R-3", item=item, value=value, unit=unit), "가상생명", "2026-11-10"), item
+
+
+def test_최근_빈_날은_저장해_두어도_다시_묻는다(monkeypatch, tmp_path):
+    """KRX 는 그날 시세를 다음 날 올린다. 최근 빈 응답을 휴장일로 굳히지 않는다 (2026-11-24: 종가가 20일에 멈춤)"""
+    import io
+    import json
+    from datetime import date, timedelta
+    from tribunal.external import krx as kx
+    recent = (date.today() - timedelta(days=1)).strftime("%Y%m%d")
+    old = (date.today() - timedelta(days=30)).strftime("%Y%m%d")
+    for d in (recent, old):
+        (tmp_path / f"stk_bydd_trd-{d}.json").write_text(json.dumps({"rows": [], "day": d}), encoding="utf-8")
+    calls = []
+
+    def fake(req, timeout=0):
+        calls.append(req.full_url)
+        return io.BytesIO(json.dumps({"OutBlock_1": [day_row(100, 90, 110)]}).encode())
+    monkeypatch.setattr(kx.urllib.request, "urlopen", fake)
+    k = Krx(key="x", cache=tmp_path)
+    assert k.day("stk_bydd_trd", old)["rows"] == [] and not calls          # 오래된 빈 날 = 휴장일, 다시 안 묻는다
+    assert len(k.day("stk_bydd_trd", recent)["rows"]) == 1 and len(calls) == 1

@@ -247,7 +247,11 @@ class Dart:
             return ""
         with zipfile.ZipFile(io.BytesIO(raw)) as z:
             main = sorted(z.namelist(), key=len)[0]          # 본문은 '접수번호.xml', 첨부는 '접수번호_00760.xml'
-            return z.read(main).decode("utf-8", "ignore")
+            data = z.read(main)
+        try:                                                            # 옛 원문(2021년 무렵까지)은 머리말엔 utf-8 이라 적고 실제는 EUC-KR(cp949)
+            return data.decode("utf-8")
+        except UnicodeDecodeError:
+            return data.decode("cp949", "ignore")
 
 
 _CTX = re.compile(r"<xbrli:context id=\"([^\"]+)\">(.*?)</xbrli:context>", re.S)

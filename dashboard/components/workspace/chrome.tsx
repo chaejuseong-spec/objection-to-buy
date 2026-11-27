@@ -40,12 +40,61 @@ export interface PanelSwitch { open: boolean; onToggle: () => void }
 /** 종목 검색 (2026-11-23): 회사명·종목코드로 상장사를 찾아 기본 종목정보를 연다. 비어 있을 때 누르면 최근 본 종목 */
 export interface StockPick { ticker: string; name: string }
 const RECENT_KEY = "ws-recent-stocks";
+const RECENT_MAX = 15;                               // 최근 본 종목 (2026-11-26 사용자: 15개, 목록은 스크롤)
 export function loadRecentStocks(): StockPick[] {
-  try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); return Array.isArray(v) ? v.slice(0, 8) : []; } catch { return []; }
+  try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); return Array.isArray(v) ? v.slice(0, RECENT_MAX) : []; } catch { return []; }
 }
 export function rememberStock(x: StockPick) {
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify([x, ...loadRecentStocks().filter((y) => y.ticker !== x.ticker)].slice(0, 8))); } catch { /* 무시 */ }
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify([x, ...loadRecentStocks().filter((y) => y.ticker !== x.ticker)].slice(0, RECENT_MAX))); } catch { /* 무시 */ }
+  window.dispatchEvent(new Event(RECENT_KEY));
 }
+function forgetStock(ticker: string) {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(loadRecentStocks().filter((y) => y.ticker !== ticker))); } catch { /* 무시 */ }
+  window.dispatchEvent(new Event(RECENT_KEY));
+}
+const SAVED_KEY = "ws-saved-stocks";
+export function loadSavedStocks(): StockPick[] {
+  try { const v = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+function toggleSaved(x: StockPick) {
+  const cur = loadSavedStocks();
+  const next = cur.some((y) => y.ticker === x.ticker) ? cur.filter((y) => y.ticker !== x.ticker) : [...cur, x];
+  try { localStorage.setItem(SAVED_KEY, JSON.stringify(next.slice(0, 30))); } catch { /* 무시 */ }
+  window.dispatchEvent(new Event(SAVED_KEY));
+}
+function useStockList(key: string, load: () => StockPick[]) {
+  const [list, setList] = useState<StockPick[]>([]);
+  useEffect(() => {
+    const f = () => setList(load());
+    f();
+    window.addEventListener(key, f);
+    return () => window.removeEventListener(key, f);
+  }, [key, load]);
+  return list;
+}
+/** 종목 목록 한 칸 (저장 종목·최근 본 종목): 누르면 그 종목, ×는 목록에서만 뺀다 */
+function StockList({ title, list, onPick, current, onRemove, empty, scroll }: {
+  title: string; list: StockPick[]; onPick: (x: StockPick) => void; current?: string; onRemove: (x: StockPick) => void; empty?: string; scroll?: boolean;
+}) {
+  if (!list.length && !empty) return null;
+  return (
+    <nav className={s.railNav} aria-label={title}>
+      <div className={s.railNavHead}><h2>{title}</h2></div>
+      {!list.length && <p className={s.railEmpty}>{empty}</p>}
+      <div className={scroll ? s.stockScroll : s.stockRows}>
+      {list.map((x) => (
+        <div key={x.ticker} className={s.recentRow}>
+          <button type="button" className={s.navItem} aria-current={current === x.ticker ? "page" : undefined} onClick={() => onPick(x)}>
+            <span>{x.name}</span><small>{x.ticker}</small>
+          </button>
+          <button type="button" className={s.recentDel} aria-label={`${x.name} ${title}에서 빼기`} onClick={() => onRemove(x)}>×</button>
+        </div>
+      ))}
+      </div>
+    </nav>
+  );
+}
+
 function StockSearch({ onPick }: { onPick: (x: StockPick) => void }) {      // 왼쪽 목록 맨 위 (리포트 올리기 위)
   const [q, setQ] = useState("");
   const [items, setItems] = useState<StockPick[]>([]);
@@ -140,7 +189,7 @@ function RowState({ e }: { e: LibraryEntry }) {
 }
 
 export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, onUpload, uploading, uploadError, section, onSection, navMeta, showNav,
-                         customOrder, onMove, onResetOrder, onDelete, onNote, sub, onStock, stockNav }: {
+                         customOrder, onMove, onResetOrder, onDelete, onNote, sub, onStock, stockNav, area = "report" }: {
   entries: LibraryEntry[]; total: number; query: string; onQuery: (q: string) => void; selectedId: string | null; onSelect: (id: string) => void;
   onUpload: (f: File) => void; uploading: boolean; uploadError: string | null;
   section: Section; onSection: (s: Section) => void; navMeta: Partial<Record<Section, string>>; showNav: boolean;
@@ -149,7 +198,10 @@ export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, 
   sub?: Partial<Record<Section, SubNav>>;
   onStock?: (x: StockPick) => void;
   stockNav?: SubNav & { name: string; ticker: string; onClose: () => void };   // 검색한 종목을 보는 중: 그 종목 메뉴
+  area?: Area;                                   // 왼쪽 아이콘 막대에서 고른 화면 (2026-11-24, 사용자): 종목정보 / 리포트 분석
 }) {
+  const saved = useStockList(SAVED_KEY, loadSavedStocks);
+  const recentList = useStockList(RECENT_KEY, loadRecentStocks);
   const [open, setOpen] = useState(false);
   // 보관함은 접힌 배너로 두고, 누르면 목록이 펼쳐진다. 리포트를 고르지 않았으면 펼쳐 둔다
   // 보관함 관리 창: 왼쪽 배너를 누르면 가운데에 작은 창으로 뜬다 (Esc 나 바깥을 누르면 닫힘)
@@ -190,9 +242,39 @@ export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, 
   };
 
   return (
-    <aside className={`${s.rail} ${s.scroll}`} aria-label="리포트 탐색">
+    <aside className={`${s.rail} ${s.scroll}`} aria-label={area === "stock" ? "종목정보" : "리포트 탐색"}>
+      {area === "stock" && onStock && <>
+        <StockSearch onPick={onStock} />
+        <StockList title="저장 종목" list={saved} current={stockNav?.ticker} onPick={(x) => { rememberStock(x); onStock(x); }} onRemove={toggleSaved}
+                   empty="저장한 종목이 없습니다." />
+        <StockList title="최근 본 종목" list={recentList} scroll current={stockNav?.ticker} onPick={(x) => { rememberStock(x); onStock(x); }}
+                   onRemove={(x) => forgetStock(x.ticker)} />
+      {stockNav && (
+        <nav className={s.railNav} aria-label={`${stockNav.name} 종목정보`}>
+          <div className={s.railNavHead}>
+            <span className={s.railNavKicker}>현재 보고 있는 종목</span>
+            <div className={s.stockHeadRow}>
+              <h2 title={stockNav.name}>{stockNav.name}</h2>
+              <button type="button" className={s.saveStock} aria-pressed={saved.some((x) => x.ticker === stockNav.ticker)}
+                      onClick={() => toggleSaved({ ticker: stockNav.ticker, name: stockNav.name })}>
+                {saved.some((x) => x.ticker === stockNav.ticker) ? "★ 저장됨" : "☆ 저장"}
+              </button>
+              <button type="button" className={s.stockClose} aria-label="이 종목 닫기" title="이 종목 닫기" onClick={stockNav.onClose}>×</button>
+            </div>
+            <span>{stockNav.ticker}</span>
+          </div>
+          {stockNav.items.map((k) => (
+            <button key={k.id} type="button" className={s.navItem} aria-current={stockNav.current === k.id ? "page" : undefined}
+                    onClick={() => stockNav.onSelect(k.id)}>
+              <span>{k.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+      </>}
+
+      {area === "report" && <>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {onStock && <StockSearch onPick={onStock} />}
         <button type="button" className={s.btnPrimary} style={{ height: 34 }} aria-expanded={open || uploading} onClick={() => setOpen((v) => !v)}>
           <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <path d="M8 3v10M3 8h10" />
@@ -305,24 +387,6 @@ export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, 
         </dialog>
       </section>
 
-      {stockNav && (
-        <nav className={s.railNav} aria-label={`${stockNav.name} 종목정보`}>
-          <div className={s.railNavHead}>
-            <h2>{stockNav.name}</h2>
-            <span>{stockNav.ticker} · 검색한 종목</span>
-          </div>
-          {stockNav.items.map((k) => (
-            <button key={k.id} type="button" className={s.navItem} aria-current={stockNav.current === k.id ? "page" : undefined}
-                    onClick={() => stockNav.onSelect(k.id)}>
-              <span>{k.label}</span>
-            </button>
-          ))}
-          <button type="button" className={s.textBtn} style={{ alignSelf: "flex-start", marginTop: 4 }} onClick={stockNav.onClose}>
-            {selected ? "← 리포트로 돌아가기" : "← 닫기"}
-          </button>
-        </nav>
-      )}
-
       {showNav && selected && (
         <nav ref={nav} className={s.railNav} aria-label="리포트 안에서 이동" data-indicator={mark ? "" : undefined}>
           {mark && <span className={s.navIndicator} data-ready={mark.ready || undefined} aria-hidden="true"
@@ -352,6 +416,8 @@ export function Sidebar({ entries, total, query, onQuery, selectedId, onSelect, 
           })}
         </nav>
       )}
+
+      </>}
 
       <p className={s.railFoot}>평가는 AI와 코드가 만든 초안입니다. 매수, 보유, 매도는 사람이 정합니다.</p>
     </aside>
@@ -394,5 +460,23 @@ export function SectionTabs({ section, onSelect }: { section: Section; onSelect:
         </button>
       ))}
     </div>
+  );
+}
+
+/** 맨 왼쪽 아이콘 막대 (2026-11-24, 사용자): 종목정보 / 리포트 분석을 나눈다. 목록을 접어도 남는다 */
+export type Area = "stock" | "report" | "market";
+export function AreaRail({ area, onArea }: { area: Area; onArea: (a: Area) => void }) {
+  const item = (id: Area, label: string, icon: React.ReactNode) => (
+    <button type="button" className={s.areaBtn} aria-current={area === id ? "page" : undefined} onClick={() => onArea(id)} title={label}>
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+      <span>{label}</span>
+    </button>
+  );
+  return (
+    <nav className={s.areaRail} aria-label="화면 고르기">
+      {item("market", "시장", <><path d="M3 17V9M8 17V4M13 17v-6M18 17V7" /></>)}
+      {item("stock", "종목정보", <><path d="M3 16h14" /><path d="M5 13l3.5-4 3 2.5L16 5" /></>)}
+      {item("report", "리포트 분석", <><path d="M6 2.5h6l3.5 3.5v11a.5.5 0 0 1-.5.5H6a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" /><path d="M12 2.5V6h3.5" /><path d="M8 10h5M8 13h5" /></>)}
+    </nav>
   );
 }

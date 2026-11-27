@@ -318,9 +318,10 @@ export async function refreshCompany(id: string): Promise<unknown> {
       cwd: PROJECT, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
     });
     let out = "";
-    child.stdout.on("data", (b) => { out += b; });
+    child.stdout.setEncoding("utf8");                    // 한글이 조각 사이에 걸려도 깨지지 않게 (2026-11-26)
+    child.stdout.on("data", (b: string) => { out += b; });
     child.stderr.resume();
-    const timer = setTimeout(() => { child.kill(); reject(new UserError("시세를 받는 데 너무 오래 걸립니다.")); }, 180_000);
+    const timer = setTimeout(() => { child.kill(); reject(new UserError("종목정보를 만드는 데 너무 오래 걸립니다.")); }, 300_000);
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) return reject(new UserError("시세를 새로 받지 못했습니다."));
@@ -336,7 +337,8 @@ function runPyJson(args: string[], timeoutMs: number, fail: string): Promise<unk
       cwd: PROJECT, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
     });
     let out = "";
-    child.stdout.on("data", (b) => { out += b; });
+    child.stdout.setEncoding("utf8");                    // 한글이 조각 사이에 걸려도 깨지지 않게 (2026-11-26)
+    child.stdout.on("data", (b: string) => { out += b; });
     child.stderr.resume();
     const timer = setTimeout(() => { child.kill(); reject(new UserError(`${fail} (시간 초과)`)); }, timeoutMs);
     child.on("close", (code) => {
@@ -348,6 +350,24 @@ function runPyJson(args: string[], timeoutMs: number, fail: string): Promise<unk
 }
 const TICKER_RE = /^[0-9A-Z]{6}$/;
 
+/** 지금 상장된 종목코드: 받아 둔 가장 최근 KRX 일별 시세(유가증권·코스닥)에 있는 종목. 파일이 없으면 빈 집합(거르지 않음) */
+async function listedTickers(): Promise<Set<string>> {
+  const dir = path.join(PROJECT, ".cache", "krx");
+  const out = new Set<string>();
+  try {
+    const files = await readdir(dir);
+    for (const ep of ["stk_bydd_trd", "ksq_bydd_trd"]) {
+      const last = files.filter((f) => f.startsWith(`${ep}-`)).sort().at(-1);
+      if (!last) continue;
+      const rows: { ISU_CD?: string }[] = JSON.parse(await readFile(path.join(dir, last), "utf-8")).rows ?? [];
+      rows.forEach((r) => { const c = String(r.ISU_CD ?? ""); out.add(c.length > 6 ? c.slice(3, 9) : c); });
+    }
+  } catch {
+    return new Set();
+  }
+  return out;
+}
+
 /** 종목 검색 (2026-11-23): DART 상장사 목록에서 회사명·종목코드로. 이름이 그 글자로 시작하는 회사가 먼저 */
 export async function searchStocks(q: string): Promise<{ ticker: string; name: string }[]> {
   const t = q.trim().replace(/\s+/g, "").toLowerCase();
@@ -358,10 +378,46 @@ export async function searchStocks(q: string): Promise<{ ticker: string; name: s
   } catch {
     throw new UserError("상장사 목록이 아직 없습니다. 리포트를 한 번 분석하면 만들어집니다.");
   }
-  const hits = list.filter((c) => c.stock_code.includes(t) || c.corp_name.replace(/\s+/g, "").toLowerCase().includes(t));
+  const listed = await listedTickers();
+  const hits = list.filter((c) => (!listed.size || listed.has(c.stock_code))        // 상장폐지 종목은 뺀다 (2026-11-25 사용자)
+    && (c.stock_code.includes(t) || c.corp_name.replace(/\s+/g, "").toLowerCase().includes(t)));
   const rank = (c: { corp_name: string; stock_code: string }) =>
     (c.stock_code === t || c.corp_name.toLowerCase() === t ? 0 : c.corp_name.toLowerCase().startsWith(t) || c.stock_code.startsWith(t) ? 1 : 2) * 100 + c.corp_name.length;
   return hits.sort((a, b) => rank(a) - rank(b)).slice(0, 12).map((c) => ({ ticker: c.stock_code, name: c.corp_name }));
+}
+
+/** 금감원 회사 이름 → 지금 상장된 종목코드 (2026-11-26 사용자 B안). 못 찾으면 null (= 비상장으로 표시)
+ *  표기 차이: 케이비=KB 등 한글 표기, '○○금융지주회사'=○○지주, 바뀐 이름(디지비→iM) */
+const SPELL: [string, string][] = [["케이비", "KB"], ["엔에이치", "NH"], ["비엔케이", "BNK"], ["디지비", "DGB"], ["제이비", "JB"], ["아이비케이", "IBK"],
+  ["아이엠", "iM"], ["에스케이", "SK"], ["케이티", "KT"], ["엘지", "LG"], ["지에스", "GS"], ["디비", "DB"], ["케이", "K"]];
+const RENAMED: Record<string, string> = { DGB금융지주: "IM금융지주", 한국투자금융지주: "한국금융지주", 중소기업은행: "기업은행" };
+function normCo(n: string): string {
+  let s = n.replace(/\s|주식회사|\(주\)|㈜/g, "").replace(/회사$/, "").replace(/보험$/, "");   // 삼성생명보험 = 삼성생명
+  for (const [a, b] of SPELL) s = s.split(a).join(b);
+  s = s.toUpperCase();
+  return (RENAMED[s] ?? s).toUpperCase();
+}
+export async function matchListed(names: string[]): Promise<Record<string, string | null>> {
+  let list: { corp_name: string; stock_code: string }[] = [];
+  try {
+    list = JSON.parse(await readFile(path.join(PROJECT, ".cache", "dart", "corpcode.json"), "utf-8")).list ?? [];
+  } catch {
+    return Object.fromEntries(names.map((n) => [n, null]));
+  }
+  const listed = await listedTickers();
+  const by = new Map<string, string>();
+  for (const c of list) {
+    if (!TICKER_RE.test(c.stock_code) || (listed.size && !listed.has(c.stock_code))) continue;
+    const k = normCo(c.corp_name);
+    if (!by.has(k)) by.set(k, c.stock_code);
+    if (k.endsWith("금융지주")) by.set(k.replace(/금융지주$/, "지주"), by.get(k.replace(/금융지주$/, "지주")) ?? c.stock_code);
+  }
+  return Object.fromEntries(names.map((n) => {
+    const k = normCo(n);
+    const tries = [k, k.replace(/금융지주$/, "지주"), k.endsWith("금융지주") ? k.replace(/지주$/, "") : "",   // KB금융지주 = KB금융
+      k.replace(/해상화재$/, "해상"), k.replace(/화재해상$/, "화재"), k.replace(/재$/, "")];                // 현대해상화재 = 현대해상, 흥국화재해상 = 흥국화재, 코리안리재 = 코리안리
+    return [n, tries.map((x) => (x ? by.get(x) : undefined)).find(Boolean) ?? null];
+  }));
 }
 
 /** 같은 업종의 비상장 정기보고서 제출사 (DART). 업종 목록이 아직 없으면 빈 목록 */
@@ -382,6 +438,26 @@ export async function unlistedPeers(induty: string): Promise<{ corp_code: string
 }
 
 /** 검색한 종목의 '내 차트' (종목마다, library/_stocks/<종목코드>/charts.json) */
+/** 모든 회사 공통 차트 (2026-11-24, 사용자): 어느 회사를 열든 '저장된 차트'에 나온다. 지표 구성만 저장 */
+const COMMON_CHARTS = path.join(LIBRARY, "_common", "charts.json");
+export async function readCommonCharts(): Promise<unknown[]> {
+  try {
+    const v = JSON.parse(await readFile(COMMON_CHARTS, "utf-8"));
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+export async function writeCommonCharts(charts: unknown): Promise<void> {
+  if (!Array.isArray(charts) || charts.length > 40) throw new UserError("차트는 40개까지 저장할 수 있습니다.");
+  const body = JSON.stringify(charts, null, 1);
+  if (body.length > 200_000) throw new UserError("차트 설정이 너무 큽니다.");
+  await mkdir(path.dirname(COMMON_CHARTS), { recursive: true });
+  const tmp = `${COMMON_CHARTS}.tmp`;
+  await writeFile(tmp, body, "utf-8");
+  await rename(tmp, COMMON_CHARTS);
+}
+
 export async function readStockCharts(ticker: string): Promise<unknown[]> {
   if (!TICKER_RE.test(ticker)) return [];
   try {
@@ -409,7 +485,53 @@ export async function stockCompany(ticker: string, refresh = false): Promise<unk
   return runPyJson(["--stock", ticker, ...(refresh ? ["--refresh"] : [])], 300_000, "종목정보를 만들지 못했습니다.");
 }
 
-/** 주가 차트 자료 (받아 둔 KRX 일별 파일에서, 액면분할 보정) */
+/** 별도(회사 단독) 기준 재무제표 (화면에서 '별도'를 누를 때, 7일 저장) */
+export async function stockSeparate(ticker: string): Promise<unknown> {
+  if (!TICKER_RE.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
+  return runPyJson(["--separate", ticker], 300_000, "별도 기준 재무를 받지 못했습니다.");
+}
+
+/** 시장 화면 (2026-11-24): 지수·국채 금리·환율·시장 투자자별 매매대금·섹터 등락 (토스증권). 10분 저장 */
+export async function marketData(): Promise<unknown> {
+  return runPyJson(["--market"], 180_000, "시장 자료를 받지 못했습니다.");
+}
+
+/** 토스 섹터 (2026-11-24): 종목이 속한 섹터들, 등락률, 구성 종목 시가총액 순위. 색인은 7일(처음 2~3분), 화면 자료는 6시간 저장 */
+export async function stockSector(ticker: string): Promise<unknown> {
+  if (!TICKER_RE.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
+  return runPyJson(["--sector", ticker], 400_000, "섹터 자료를 받지 못했습니다.");
+}
+
+/** 경쟁사 표 현재가 (2026-11-26 사용자): 토스 최근 가격. 종목당 1번, 10분 저장 */
+export async function lastPrices(tickers: string[]): Promise<unknown> {
+  const ok = [...new Set(tickers.filter((t) => TICKER_RE.test(t)))].slice(0, 40);
+  if (!ok.length) return { prices: {} };
+  return runPyJson(["--last-prices", ok.join(",")], 120_000, "현재가를 받지 못했습니다.");
+}
+
+/** 섹터 직접 추가 (2026-11-26 사용자): 토스 섹터 전체 목록 / 종목에 붙인 섹터 저장 (저장 후 그 종목 섹터 자료를 다시 돌려준다) */
+export async function sectorList(): Promise<unknown> {
+  return runPyJson(["--sector-list"], 400_000, "섹터 목록을 받지 못했습니다.");
+}
+export async function setStockSectors(ticker: string, ids: string[]): Promise<unknown> {
+  if (!TICKER_RE.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
+  const clean = ids.filter((x) => /^[0-9A-Za-z_-]{1,40}$/.test(x)).slice(0, 6);
+  return runPyJson(["--sector-extra", ticker, clean.join(",")], 400_000, "섹터를 저장하지 못했습니다.");
+}
+
+/** 고른 토스 섹터의 경쟁사 표 (2026-11-25, 사용자 'A': 사업이 여럿인 회사는 섹터 버튼으로 경쟁사 표도 바꾼다). 섹터마다 7일 저장 */
+export async function stockPeersSector(ticker: string, sector: string): Promise<unknown> {
+  if (!TICKER_RE.test(ticker) || !/^[0-9A-Za-z_-]{1,40}$/.test(sector)) throw new UserError("종목코드나 섹터가 올바르지 않습니다.");
+  return runPyJson(["--peers-sector", ticker, sector], 300_000, "그 섹터의 경쟁사 표를 만들지 못했습니다.");
+}
+
+/** 수급 (2026-11-24): 토스증권 투자자별·프로그램·공매도·신용·대차 일별 1년, 매수 유의사항. 30분 저장 */
+export async function stockFlows(ticker: string): Promise<unknown> {
+  if (!TICKER_RE.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
+  return runPyJson(["--flows", ticker], 180_000, "수급 자료를 받지 못했습니다.");
+}
+
+/** 주가 차트 자료 (토스증권 수정주가 일봉, 못 받으면 KRX) */
 export async function stockHistory(ticker: string): Promise<unknown> {
   if (!TICKER_RE.test(ticker)) throw new UserError("종목코드가 올바르지 않습니다.");
   return runPyJson(["--history", ticker, "260"], 300_000, "주가 자료를 받지 못했습니다.");
@@ -471,7 +593,8 @@ export async function peerSeries(ticker: string, fisis?: string, corp?: string):
       cwd: PROJECT, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
     });
     let out = "";
-    child.stdout.on("data", (b) => { out += b; });
+    child.stdout.setEncoding("utf8");                    // 한글이 조각 사이에 걸려도 깨지지 않게 (2026-11-26)
+    child.stdout.on("data", (b: string) => { out += b; });
     child.stderr.resume();
     const timer = setTimeout(() => { child.kill(); reject(new UserError("동종사 자료를 받는 데 너무 오래 걸립니다.")); }, 300_000);
     child.on("close", (code) => {

@@ -76,14 +76,38 @@ export type Result = Omit<RawResult, "numbers" | "claims" | "marks"> & {
 /* ───────── 기본 종목정보 (2026-11-22) ───────── */
 export type FinKey = "revenue" | "op" | "pretax" | "ni" | "ni_owner" | "assets" | "liab" | "equity" | "equity_owner"
   | "cur_assets" | "cur_liab" | "cfo" | "cfi" | "cff" | "cogs" | "gross" | "sga" | "inventory" | "capex"
-  | "ins_profit" | "inv_profit" | "div_rev";   // 보험사 손익 (DART 손익계산서)
+  | "ins_profit" | "inv_profit" | "div_rev" | "da";   // 보험사 손익 (DART 손익계산서)
 /** 한 기간의 핵심 계정(원). 없는 값은 null. derived: 계산으로 만든 값(4분기 = 연간 − 3분기 누적 등), missing: 공시 API 값이 틀려 비운 값 */
-export type FinPeriod = { period: string; end: string; rcept_no: string; derived?: string[]; missing?: string[] } & Partial<Record<FinKey, number | null>>;
+export type FinPeriod = { period: string; end: string; rcept_no: string; derived?: string[]; missing?: string[];
+  da?: number | null; da_basis?: string; doc?: boolean;
+  roe?: number | null; roa?: number | null; nci?: number | null; ni_nci?: number | null; eps_disc?: number | null } & Partial<Record<FinKey, number | null>>;   // roe·roa: Python add_returns (최근 4분기 / 연간)   // da: 감가상각비+상각비 (연간, 주석)
+export interface CoreCell {
+  v: number | null;
+  /** reported 그 해 보고서 값 / derived 계산 / restated 다음 해 보고서의 비교 숫자 / na 해당 없음 */
+  st: "reported" | "derived" | "restated" | "na" | "old_none" | "new_none" | "absent";
+  why?: string;
+  name?: string; from?: string; old_basis?: boolean; verified?: boolean;
+  /** 회사가 양식을 바꾼 해 (그 앞 해 값이면 '양식 변경 전'), old_none 칸은 같은 뜻의 옛 줄이 없음 */
+  old_form?: number; form_year?: number;
+  /** 처음 공시 값(같은 묶음을 나중 보고서 값으로 맞췄을 때), 다음 해 보고서가 다시 적은 값, 정의 변경 전 */
+  first_v?: number | null; later_v?: number; later_from?: string; old_def?: boolean; def_change?: boolean;
+}
+export interface CoreStatements {
+  template: string; basis: string; years: number[];
+  items: { key: string; label: string; sj: "IS" | "BS" | "CF"; need: boolean; parent: string | null }[];
+  cells: Record<string, Record<string, CoreCell>>;
+  checks: Record<string, { ok: number; bad: number }>;
+  form_year?: number | null;
+  sources: Record<string, string>;
+}
 export interface StatementTable {
   accounts: { id: string; name: string; key: string | null }[];
   annual: Record<string, Record<string, number | null>>;
   quarter: Record<string, Record<string, number | null>>;
   missing?: [string, string][];
+  /** [기간, 계정]: 그 기간 보고서에 없어 다음 해 보고서의 비교(전기·전전기) 숫자로 채운 칸 */
+  prior?: [string, string][];
+  doc?: [string, string][];          // 그 분기 보고서 원문 표에서 읽은 칸 (재무 API 에 없는 금융회사 2023년 1·2분기 재무상태)
 }
 export interface PriceDay {
   date: string; close: number | null; high: number | null; low: number | null; open: number | null;
@@ -94,6 +118,7 @@ export interface PeerSeries {
   error?: string; made_at: string; ticker: string; name: string; financial: boolean; fs?: string | null;
   annual: FinPeriod[]; quarter: FinPeriod[];
   insurance?: Company["insurance"]; sector?: Pick<Sector, "part" | "sector" | "company" | "month" | "metrics" | "series"> | null;
+  valuation?: Company["valuation"];                     // 상장사: 분기 말 종가·시가총액·PER·PBR (추이 비교)
 }
 /** 동종사 추이 비교용: 금감원 FISIS 에 있는 회사 하나(비상장 포함)의 업종 지표·CSM 분기 추이 (회사 개별 기준) */
 export interface FisisPeer {
@@ -104,18 +129,35 @@ export interface FisisPeer {
 }
 export interface Company {
   error?: string;
+  v?: number;                          // 자료 형식 번호 (company.py CO_V)
   made_at: string; ticker: string; name: string; financial: boolean;
   info: Partial<Record<"corp_name" | "corp_name_eng" | "ceo_nm" | "est_dt" | "hm_url" | "induty_code" | "acc_mt" | "adres", string>>;
   price: PriceDay | null;
   range52: { high: number; low: number; days: number } | null;
   price_days: number;
   statements: { fs: string | null; annual: FinPeriod[]; quarter: FinPeriod[]; tables: Partial<Record<"IS" | "BS" | "CF", StatementTable>>;
-                sources?: { period: string; rcept_no: string; url: string }[] };
+                sources?: { period: string; rcept_no: string; url: string; doc?: boolean }[];
+                /** 금융회사 옛 해(재무 API 없는 해)를 사업보고서 원문 재무제표 표로 채운 결과 */
+                doc_check?: { year: number; ok: boolean | null; why?: string; filled?: string[] };
+                /** 보험사: 이 해 이전은 옛 회계기준 */
+                old_rule?: { before: string; label: string } };
   dividends: { year: number; rcept_no: string; dps?: number; yield?: number; payout?: number }[];
   /** 보험사만: CSM 잔액·신계약 CSM·CSM 상각액(원, 분기 3개월 값), 지급여력비율(%) */
   insurance?: { period: string; end: string; rcept_no: string; csm?: number | null; csm_new?: number | null; csm_amort?: number | null;
                 kics?: number | null; kics_from?: string; derived?: string[]; src?: { csm?: string | null; kics?: string | null } }[] | null;
-  metrics: { eps: number | null; bps: number | null; per: number | null; pbr: number | null; roe: number | null; basis: Record<string, string> };
+  metrics: { eps: number | null; bps: number | null; per: number | null; pbr: number | null; roe: number | null;
+    shares?: number | null; div_yield?: number | null; div_year?: number | null; basis: Record<string, string> };
+  shares_float?: { n: number; label: string; rcept_no: string } | null;
+  /** 최대주주 (최근 사업보고서): 이름, 보통주 지분율, 특수관계인 포함 지분율 */
+  holder?: { name: string; share: number | null; group: number | null; year: number } | null;
+  /** 분기 말 PER·PBR 추이: 분기 마지막 거래일 시가총액(KRX) ÷ 최근 4분기 지배주주 순이익 / 분기 말 지배주주 자본(DART) */
+  valuation?: { period: string; date: string; close: number | null; mktcap: number | null; per: number | null; pbr: number | null;
+    shares?: number | null; eps?: number | null; eps_y?: number | null; bps_calc?: boolean; divy?: number | null; div_from?: number | null; known?: string | null; per_from?: string | null; bps?: number | null; split?: number; split_at?: number }[] | null;
+  /** 사업보고서 본문 표: 연구개발비(원, 매출액 대비 %는 공시값), 수주잔고(원, 연말) */
+  business?: { rnd: { year: number; amount: number; ratio: number | null; rcept_no: string }[];
+               backlog: { year: number; amount: number; basis: string; rcept_no: string }[]; source: string } | null;
+  /** 핵심 재무제표 (금융회사, 업권별 20~30줄, 연간 10년). cells[항목][연도] */
+  core?: CoreStatements | null;
   sources: Record<string, string>;
   price_checked_at?: string;          // 시세를 마지막으로 확인한 시각 (화면이 하루 한 번 새로 받는다)
   peers?: Peers | null;
@@ -127,7 +169,7 @@ export interface Company {
 }
 export interface Sector {
   error?: string; part: string; sector: string; company: string; month: string | null;
-  metrics: { key: string; label: string; group: string; unit: string }[];
+  metrics: { key: string; label: string; group: string; unit: string; term?: string; desc?: string }[];
   series: ({ period: string } & Record<string, number | string | null>)[];
   peers: ({ finance_cd: string; name: string; full_name: string; me: boolean } & Record<string, number | string | boolean | null>)[];
 }
@@ -139,12 +181,15 @@ export interface IndustryRow {
 }
 export interface Industry { error?: string; made_at?: string; part?: string; part_name?: string; month?: string; rows?: IndustryRow[]; source?: string; basis?: string }
 export interface PeerRow {
-  ticker: string; name: string; error?: string; induty?: string; close?: number | null; mktcap?: number | null; rate?: number | null; day?: string;
+  ticker: string | null; corp_code?: string; listed?: boolean; assets?: number | null;   // 금융 경쟁사는 비상장(ticker 없음)도 (금감원 업권 목록)
+  name: string; error?: string; induty?: string; close?: number | null; mktcap?: number | null; rate?: number | null; day?: string;
   fs?: string | null; period?: string | null; per?: number | null; pbr?: number | null; roe?: number | null; debt?: number | null;
   op?: number | null; ni4?: number | null; equity?: number | null; eps?: number | null; bps?: number | null;
   csm?: number | null; csm_new?: number | null; kics?: number | null; kics_src?: string;
 }
-export interface Peers { error?: string; made_at?: string; induty?: string; insurer?: boolean; basis?: string; rows?: PeerRow[] }
+export interface Peers { error?: string; made_at?: string; induty?: string; insurer?: boolean; basis?: string; rows?: PeerRow[];
+  sector?: { id: string; name: string; path?: string[] } | null;
+  fin?: { part: string; name: string; count: number } }   // 금융: 금감원 업권 회사로 고른 경쟁사   // 경쟁사 표를 만든 토스 섹터 (전면 개편 1차)
 export type Mark = Result["marks"][number];
 export type Figure = Result["figures"][number];
 export type Table = Result["tables"][number];

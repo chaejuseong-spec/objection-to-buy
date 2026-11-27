@@ -298,12 +298,8 @@ def run(report_path: Path, mock: bool, n_jurors: Optional[int] = None, out_root:
     # 기본 종목정보 (2026-11-22): 지금 기준 재무·실적·배당·시세. AI 없이 DART·KRX 만 부른다. 실패해도 분석은 그대로
     if not mock and report.meta.ticker and (cfg.get("external") or {}).get("company", True):
         try:
-            from .external import company
-            result["company"] = company.build(report.meta.ticker)
-            from .external import peers                         # 상장 경쟁사 비교: 업종 목록을 만들어 둔 뒤에만 (python -m tribunal.external.peers --index)
-            if peers.INDEX.exists():
-                result["company"]["peers"] = peers.build(report.meta.ticker)
-                company.fill_peers_from_industry(result["company"])
+            from .external import company                       # 종목 검색과 같은 저장 자료를 쓴다 (경쟁사 비교 포함, 2026-11-24)
+            result["company"] = company.stock(report.meta.ticker)
         except Exception as e:                                  # noqa: BLE001 (참고 정보라 분석을 멈추지 않는다)
             llm._log(f"[company] 기본 종목정보를 만들지 못했습니다: {type(e).__name__}")
     write_result(out / "result.json", result)

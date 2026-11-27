@@ -3873,3 +3873,162 @@
   flex: none;
   width: 100%;
 }
+
+/* 최근 본 종목 (2026-11-24) */
+.recentRow {
+  display: flex;
+  align-items: center;
+}
+.recentRow .navItem {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.recentRow .navItem span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recentRow .navItem small {
+  flex: none;
+  font-size: 11px;
+  color: var(--faint, var(--muted));
+}
+.recentDel {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  opacity: 0;
+}
+.recentRow:hover .recentDel,
+.recentDel:focus-visible {
+  opacity: 1;
+}
+
+/* 맨 왼쪽 아이콘 막대: 종목정보 / 리포트 분석 (2026-11-24) */
+.areaRail {
+  flex: 0 0 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 4px;
+  background: var(--rail);
+  border-right: 1px solid var(--line);
+}
+.areaBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 44px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  transition: background-color var(--dur-fast, 120ms) ease, color var(--dur-fast, 120ms) ease;
+}
+.areaBtn span {
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+  word-break: keep-all;
+}
+@media (hover: hover) and (pointer: fine) {
+  .areaBtn:hover {
+    background: var(--hover);
+    color: var(--ink, #1a1a1a);
+  }
+}
+.areaBtn[aria-current="page"] {
+  background: var(--accent-soft, #e8eef6);
+  color: var(--accent);
+  font-weight: 600;
+}
+.areaBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.railEmpty {
+  margin: 0;
+  padding: 2px 8px 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.railNavKicker {
+  margin-bottom: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.saveStock {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.saveStock[aria-pressed="true"] {
+  color: #b7791f;
+}
+
+/* 현재 보고 있는 종목: 이름 옆 저장·닫기 (2026-11-26) */
+.stockHeadRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.stockHeadRow h2 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stockClose {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.stockClose:hover {
+  background: var(--selected);
+  color: var(--text, inherit);
+}
+.stockClose:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/* 최근 본 종목: 15개까지, 6줄 높이를 넘으면 스크롤 */
+.stockRows,
+.stockScroll {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stockScroll {
+  max-height: 192px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}

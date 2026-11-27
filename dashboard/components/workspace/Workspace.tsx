@@ -4,9 +4,10 @@
 // 분석 결과는 서버(/api/reports)에서 받아 보여주기만 하고 계산하지 않는다.
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, useLayoutEffect } from "react";
 import type { LibraryEntry, Result } from "@/lib/types";
-import { displayName, pickPdf, ReportHeader, Sidebar, SECTIONS, TopBar, type Section, type StockPick } from "./chrome";
+import { AreaRail, type Area, displayName, pickPdf, ReportHeader, Sidebar, SECTIONS, TopBar, type Section, type StockPick } from "./chrome";
 import { DocumentView, markGroup, type Filter, type Jump } from "./document-view";
 import { CompanyView, companyMenus, StockView, type CompanyMenu } from "./company-view";
+import { MarketView } from "./market-view";
 import { GradingView, ScorePanel } from "./grading-view";
 import { score, type AnswerKey, type Grading, type QualityRun, type ScoreRecord } from "@/lib/grading";
 import { Intro, INTRO_KEY } from "./intro";
@@ -183,9 +184,13 @@ export default function Workspace() {
   // 리포트 없이 검색한 종목 (2026-11-23): 있으면 가운데에 그 종목의 기본 종목정보
   const [stock, setStockRaw] = useState<StockPick | null>(null);
   const [stockMenu, setStockMenu] = useState<CompanyMenu>("overview");
-  const setStock = (x: StockPick | null) => { setStockRaw(x); setStockMenu("overview"); };
+  // 화면 나누기 (2026-11-24, 사용자): 맨 왼쪽 아이콘 막대로 종목정보 / 리포트 분석. 오가도 각자 보던 것이 남는다
+  const [area, setArea] = useState<Area>("market");          // 첫 화면은 시장 (2026-11-25, 사용자)
+  const setStockOpen = (on: boolean) => setArea(on ? "stock" : "report");
+  const setStock = (x: StockPick | null) => { setStockRaw(x); setStockMenu("overview"); if (x) setArea("stock"); };
+  const showStock = area === "stock";
   const goSection = (next: Section) => {
-    setStock(null);
+    setStockOpen(false);
     setSection(next);
     if (next === "document" && section !== "document" && selected) setJump({ ref: selected, nonce: Date.now() }); // 오른쪽 패널과 같은 곳을 보여준다
   };
@@ -200,7 +205,7 @@ export default function Workspace() {
 
   /* ───── 동작 ───── */
   const chooseReport = (id: string | null) => {
-    setStock(null);
+    setStockOpen(false);
     if (id) {
       setChecks((c) => (c[id] ? c : { ...c, [id]: loadChecks(id) }));
       setJournals((j) => (j[id] ? j : { ...j, [id]: loadJournal(id) }));
@@ -400,8 +405,11 @@ export default function Workspace() {
 
   let main: React.ReactNode;
   let inspector: React.ReactNode;
-  if (stock) {
-    main = <StockView key={stock.ticker} ticker={stock.ticker} name={stock.name} menu={stockMenu} />;
+  if (area === "market") {
+    main = <MarketView />;
+  } else if (showStock) {
+    main = stock ? <StockView key={stock.ticker} ticker={stock.ticker} name={stock.name} menu={stockMenu} />
+      : <p className={s.muted} style={{ padding: "48px 0", textAlign: "center" }}>보고 있는 종목이 없습니다.</p>;
   } else if (!entries && !listError) {
     main = <Skeleton label="보관함을 불러오는 중입니다" />;
   } else if (!entry) {
@@ -480,8 +488,8 @@ export default function Workspace() {
     }
   }
 
-  const crumbs = stock ? ["종목 검색", stock.name] : ["보관함", ...(entry ? [displayName(entry)] : ["새 리포트"]), ...(ready ? [sectionLabel] : [])];
-  const wide = !!stock || (ready && section === "figures");          // 오른쪽 검토 패널 없이 넓게
+  const crumbs = area === "market" ? ["시장"] : showStock ? ["종목정보", ...(stock ? [stock.name] : [])] : ["보관함", ...(entry ? [displayName(entry)] : ["새 리포트"]), ...(ready ? [sectionLabel] : [])];
+  const wide = showStock || area === "market" || (ready && section === "figures");          // 오른쪽 검토 패널 없이 넓게
   const gradeTone = toneOf(result?.grade.value);
 
   // 왼쪽·오른쪽 패널 너비: 손잡이를 끌어 바꾸고, 이 브라우저에 기억한다 (두 번 누르면 기본 너비)
@@ -557,13 +565,14 @@ export default function Workspace() {
       <RowsProvider rows={result?.rows ?? EMPTY_ROWS}>
       <div ref={layoutRef} className={s.layout}
            style={{ ["--rail-w" as string]: `${panelW.rail}px`, ["--insp-w" as string]: `${panelW.insp}px`, ...(dragging ? { cursor: "col-resize", userSelect: "none" } : {}) }}>
-        <div className={s.railWrap} data-closed={!open.rail || undefined} inert={!open.rail || undefined}>
+        <AreaRail area={area} onArea={setArea} />
+        <div className={s.railWrap} data-closed={!open.rail || area === "market" || undefined} inert={!open.rail || area === "market" || undefined}>
         <Sidebar entries={shown} total={entries?.length ?? 0} query={query} onQuery={setQuery} selectedId={selectedId} onSelect={chooseReport} onUpload={upload}
-                 uploading={uploading} uploadError={entry ? uploadError : null} section={stock ? ("" as Section) : section}
+                 uploading={uploading} uploadError={entry ? uploadError : null} section={showStock ? ("" as Section) : section}
                  onSection={goSection} navMeta={navMeta} showNav={ready}
-                 customOrder={customOrder} onMove={moveEntry} onResetOrder={resetOrder} onDelete={deleteEntry} onNote={saveNoteFor} onStock={(x) => setStock(x)}
-                 stockNav={stock ? { name: stock.name, ticker: stock.ticker, items: [{ id: "overview", label: "기업개요" }, { id: "fin", label: "재무" }, { id: "peers", label: "동종업계 비교" }], current: stockMenu,
-                                     onSelect: (id) => setStockMenu(id as CompanyMenu), onClose: () => setStock(null) } : undefined}
+                 customOrder={customOrder} onMove={moveEntry} onResetOrder={resetOrder} onDelete={deleteEntry} onNote={saveNoteFor} onStock={(x) => setStock(x)} area={area}
+                 stockNav={stock ? { name: stock.name, ticker: stock.ticker, items: [{ id: "overview", label: "기업개요" }, { id: "fin", label: "재무" }, { id: "peers", label: "동종업계 비교" }, { id: "flows", label: "수급" }], current: stockMenu,
+                                     onSelect: (id) => { setStockMenu(id as CompanyMenu); setStockOpen(true); }, onClose: () => setStock(null) } : undefined}
                  sub={ready && companyMenus(result?.company).length ? { figures: { items: companyMenus(result?.company), current: companyMenu,
                        onSelect: (id) => { setCompanyMenu(id as CompanyMenu); goSection("figures"); } } } : undefined} />
         </div>
@@ -584,7 +593,7 @@ export default function Workspace() {
             )
           )}
           {/* 위쪽 탭 줄은 뺐다 (2026-11-22, 사용자): 같은 메뉴가 왼쪽 목록에 있다 */}
-          {ready && !stock && result?.run.mock && (                     /* 검색한 종목 화면에는 리포트 안내를 붙이지 않는다 */
+          {ready && !showStock && area !== "market" && result?.run.mock && (                     /* 검색한 종목 화면에는 리포트 안내를 붙이지 않는다 */
             <p className={s.demoNote} style={{ marginTop: 14 }}>
               시연용 결과입니다. 논리 평가(리스크 검토자, 배심원, 판사)는 정해진 가짜 답으로 채웠고, 숫자 검증과 원문 대조는 실제 계산입니다.
             </p>

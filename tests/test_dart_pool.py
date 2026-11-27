@@ -61,7 +61,7 @@ def _out():
          "candidates": [{"source": "주식의 총수", "label": "주식의 총수 · 보통주 · 자기주식수", "value": 1234567.0, "fs": "", "end": "2026-06-30", "rcept_no": "1"}]},
         {"rid": "R-2", "item": "가상물산 지분가치", "value": "2,507", "unit": "십억 원", "period": "기간 미상",
          "candidates": [{"source": "XBRL", "label": "파생상품 금융부채", "value": 2.5078e12, "fs": "연결", "end": "2026-06-30", "rcept_no": "1"}]},
-        {"rid": "R-3", "item": "목표주가", "value": "287,000", "unit": "원", "status": "건너뜀"},
+        {"rid": "R-3", "item": "목표주가", "value": "186,000", "unit": "원", "status": "건너뜀"},
     ]}
 
 

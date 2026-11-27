@@ -187,7 +187,7 @@ def official(ecos: Ecos, spec: tuple, per: dict, report_date: str) -> Tuple[List
 
 def near_report(ecos: Ecos, spec: tuple, report_date: str) -> Tuple[List[Tuple[str, float]], str, str, str, str]:
     """기간을 밝히지 않은 수준 지표(금리·환율): 작성일 무렵의 값 후보. 직전 30영업일 하나하나, 직전 1개월·3개월 일별 평균.
-    (2026-11-21 실제 리포트 분석: CAPM 무위험수익률 4.074%는 작성일 2주 전(10/26) 값이었다)"""
+    (2026-11-21 실제 리포트 분석: CAPM 무위험수익률이 작성일 2주 전(10/26) 값이었다)"""
     end = date.fromisoformat(report_date)
     res = ecos.series(spec[4], "D", _ymd(end - timedelta(days=95)), _ymd(end), spec[5])
     vals = [(t, v) for t, v in _values(res["rows"]) if t <= _ymd(end)]

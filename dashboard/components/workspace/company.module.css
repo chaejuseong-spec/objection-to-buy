@@ -646,7 +646,7 @@
 /* ───────── 지표 탐색 (2026-11-22): 왼쪽 지표 목록 + 오른쪽 차트·표 ───────── */
 .explorer {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: var(--pane-w, 248px) 8px minmax(0, 1fr);   /* 가운데 8px: 폭 조절 손잡이 (2026-11-24) */
   gap: 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -983,8 +983,20 @@
 .peerPane {
   display: flex;
   flex-direction: column;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
+  padding: 8px 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--hover);
+  margin-bottom: 6px;
+}
+/* 비교 회사 칸과 지표 목록을 나눈다 (2026-11-24, 사용자) */
+.metricHead {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 2px 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
 }
 .peerPaneItem {
   display: flex;
@@ -1372,3 +1384,435 @@
   color: var(--down);
   font-weight: 600;
 }
+
+/* 계산 지표 만들기 (2026-11-24) */
+.calcOpen {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.calcForm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  background: var(--accent-soft);
+}
+.calcOps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.calcOps button {
+  min-width: 28px;
+  height: 26px;
+  border: 1px solid var(--control);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 13px;
+}
+.calcOps select {
+  flex: 1;
+  min-width: 110px;
+  height: 26px;
+  border: 1px solid var(--control);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 12px;
+}
+.calcHint {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.calcActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.calcActions .exportBtn:disabled {
+  cursor: not-allowed;
+}
+.textLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+.metricItem button.calcDel {
+  flex: 0 0 auto;
+  width: 22px;
+  justify-content: center;
+  color: var(--faint);
+  font-size: 14px;
+}
+.metricItem button.calcDel:hover {
+  color: var(--neg, #c0392b);
+}
+/* 지표 목록의 출처 꼬리표 (2026-11-24) */
+.metricItem button .itemSrc {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--hover);
+  font-size: 10px;
+  font-style: normal;
+  color: var(--muted);
+}
+.saveScope {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* 출처 꼬리표·값을 세로로 맞춘다 */
+.metricItem button span {
+  flex: 1;
+  min-width: 0;
+}
+.metricItem button .itemSrc {
+  margin-left: 0;
+}
+.metricItem button small {
+  min-width: 54px;
+  text-align: right;
+}
+.valTrend {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+/* 주가 차트: 이동평균선·그리기 (2026-11-24) */
+.priceTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: -4px 0 8px;
+}
+.maDot {
+  display: inline-block;
+  width: 8px;
+  height: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.drawHint {
+  font-size: 12px;
+  color: #c2410c;
+}
+.priceBox[data-drawing] {
+  cursor: crosshair;
+}
+.holderSub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* 지표 목록 폭 조절 손잡이 */
+.paneResizer {
+  cursor: col-resize;
+  touch-action: none;
+  position: relative;
+  margin-left: -4px;
+}
+.paneResizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+.paneResizer:hover::after,
+.paneResizer[data-active]::after,
+.paneResizer:focus-visible::after {
+  background: var(--accent);
+}
+.paneResizer:focus-visible {
+  outline: none;
+}
+@media (max-width: 900px) {
+  .paneResizer {
+    display: none;
+  }
+}
+/* 지표 목록을 넓혀도 위 버튼 글자가 줄바꿈되지 않게 (2026-11-24): 버튼은 한 줄, 자리가 모자라면 줄 단위로 내려간다 */
+.explorerBar {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.explorerBar button,
+.explorerBar .segment button {
+  white-space: nowrap;
+  flex: none;
+}
+.metricMain {
+  min-width: 0;
+}
+
+/* 핵심 재무제표 (2026-11-24): 표 묶음 머리줄, 출처 표시, 해당 없음 */
+.coreHead .stick {
+  padding-top: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.coreMark {
+  margin-left: 2px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.coreNa {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.allAccounts {
+  margin-top: 8px;
+}
+.allAccounts > summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--focus);
+}
+
+/* 수급 (2026-11-24): 하루 단위 차트, 매수 유의사항 */
+.flowBox {
+  position: relative;
+  border-top: 1px solid var(--line);
+}
+.warnRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.warnBadge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--up) 35%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--up) 7%, transparent);
+  color: var(--up);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.warnBadge small {
+  font-weight: 400;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 토스 섹터 (2026-11-24) */
+.sectorSummary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+.perfRow {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.perfRow div {
+  padding: 8px 0;
+}
+.perfRow dt {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.perfRow dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .perfRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 시장 화면 (2026-11-24): 맨 위 지수·환율·금리 */
+.mktTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin: 0 0 8px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.mktTiles div {
+  padding: 12px 0;
+}
+.mktTiles dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.mktTiles dd {
+  margin: 3px 0 1px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.mktTiles small {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mktTiles small.pos {
+  color: var(--up);
+}
+.mktTiles small.neg {
+  color: var(--down);
+}
+
+/* 핵심 재무제표: 회사 손익계산서 양식이 바뀐 해 (2026-11-25) */
+.finTable th.formEdge,
+.finTable td.formEdge {
+  border-left: 2px solid var(--ink-3);
+}
+
+/* 시장 화면 섹터 등락률 표: 기간 제목을 누르면 그 기간 순 (2026-11-25) */
+.sortBtn { all: unset; cursor: pointer; font: inherit; color: inherit; padding: 2px 4px; border-radius: 4px; }
+.sortBtn[aria-pressed="true"] { font-weight: 700; color: var(--ink, #1b1f24); }
+@media (hover: hover) and (pointer: fine) { .sortBtn:hover { background: rgba(0, 0, 0, 0.05); } }
+.sortBtn:focus-visible { outline: 2px solid #2a78d6; outline-offset: 1px; }
+
+/* 엑셀 내보내기 창 (시장 화면, 2026-11-26) */
+.modalBack { position: fixed; inset: 0; background: rgba(20, 24, 31, 0.32); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.modal { background: #fff; border-radius: 10px; box-shadow: 0 12px 40px rgba(20, 24, 31, 0.18); width: min(460px, 100%); padding: 20px 22px; display: grid; gap: 14px; font-size: 13px; }
+.modal h4 { margin: 0; font-size: 15px; font-weight: 700; }
+.modal fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; min-width: 0; }
+.modal fieldset:disabled { opacity: 0.45; }
+.modal legend { font-size: 12px; color: #5c626b; font-weight: 600; margin-bottom: 4px; padding: 0; }
+.modalCheck { display: flex; align-items: center; gap: 8px; min-height: 26px; }
+.modalInline { display: inline-flex; gap: 6px; margin-left: auto; }
+.modalInline select, .modalDates input { font: inherit; font-size: 12px; padding: 2px 6px; border: 1px solid #d5d8dc; border-radius: 6px; background: #fff; }
+.modalRadios { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.modalRadios label { display: inline-flex; align-items: center; gap: 5px; }
+.modalRadios > span { color: #5c626b; font-size: 12px; margin-right: 2px; }
+.modalDates { display: flex; align-items: center; gap: 8px; }
+.modalHint { color: #8a9099; font-size: 11px; }
+.modalBtns { display: flex; justify-content: flex-end; gap: 8px; }
+.modalCancel { font: inherit; padding: 6px 14px; border: 1px solid #d5d8dc; border-radius: 6px; background: #fff; cursor: pointer; }
+.modalCancel:focus-visible { outline: 2px solid #2a78d6; outline-offset: 1px; }
+
+/* 비금융 경쟁사 맨 위: 섹터 버튼 + 기간 등락률 (2026-11-26) */
+.sectorBar {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.sectorBar .segment {
+  justify-self: start;
+  flex-wrap: wrap;
+}
+
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* 기간 등락률: 섹터 + 이 종목 두 줄 (2026-11-26) */
+.perfTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.perfTable th,
+.perfTable td {
+  padding: 7px 10px;
+  text-align: right;
+  white-space: nowrap;
+}
+.perfTable thead th {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.perfTable tbody th {
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.perfTable td {
+  font-size: 14px;
+  font-weight: 600;
+}
+.perfTable tbody tr + tr {
+  border-top: 1px solid var(--line);
+}
+
+/* 기업개요 (2026-11-26 사용자): 기업 정보 표 가운데 정렬, 투자 지표 값이 잘리지 않게, 설명 말풍선이 화면 밖으로 나가지 않게 */
+.infoRow div,
+.infoRow div + div {
+  align-items: center;                /* 좌우 가운데 */
+  justify-content: center;            /* 상하 가운데 (줄 높이가 다른 칸이 있어도) */
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: center;
+}
+.infoRow dd {
+  max-width: 100%;
+}
+.metricRow {
+  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  row-gap: 12px;
+}
+.metricRow dd {
+  white-space: nowrap;
+}
+.metricRow div:first-child [data-tip]::after,
+.metricRow div:first-child [data-tip]:hover::after,
+.metricRow div:first-child [data-tip]:focus-visible::after {
+  left: -6px;
+  transform: none;
+}
+.metricRow div:last-child [data-tip]::after,
+.metricRow div:last-child [data-tip]:hover::after,
+.metricRow div:last-child [data-tip]:focus-visible::after {
+  left: auto;
+  right: -6px;
+  transform: none;
+}
+
+/* 섹터 직접 추가 (2026-11-26) */
+.sectorBtns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sectorAdd { position: relative; }
+.sectorAddBtn { height: 30px; padding: 0 10px; border: 1px dashed var(--line); border-radius: 6px; background: none; font: inherit; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+.sectorAddBtn:hover, .sectorAddBtn[aria-expanded="true"] { border-color: var(--accent, #2a78d6); color: var(--accent, #2a78d6); }
+.sectorAddPop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; display: grid; gap: 8px; width: min(340px, 86vw); padding: 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface, #fff); box-shadow: 0 8px 24px rgba(20, 24, 31, 0.14); }
+.sectorAddPop input { height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 13px; }
+.sectorAddPop ul { display: grid; max-height: 260px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.sectorAddPop li button { display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 7px 8px; border: 0; border-radius: 5px;
+  background: none; font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.sectorAddPop li button:hover, .sectorAddPop li button:focus-visible { background: var(--selected, #eef3fb); }
+.sectorAddPop li small { flex: none; color: var(--muted); }
+.sectorAddMine { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.sectorAddMine small { width: 100%; color: var(--muted); }
+.sectorAddMine button { padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: none; font: inherit; font-size: 12px; cursor: pointer; }
+
+/* 일간 단위: 일별 값이 없는 지표는 흐리게 (2026-11-26) */
+.metricItem[data-off] { opacity: 0.4; }
+.metricItem[data-off] button { cursor: default; }

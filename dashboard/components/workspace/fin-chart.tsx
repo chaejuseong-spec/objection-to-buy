@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import c from "./company.module.css";
 
-export type Fmt = "won" | "pct" | "krw" | "days";
+export type Fmt = "won" | "pct" | "krw" | "days" | "x" | "qty" | "num";   // num: 개수 (고객 수·계약 건수)
 export interface Series {
   key: string; label: string; color: string; kind: "bar" | "line"; fmt: Fmt;
   values: (number | null)[];
@@ -31,13 +31,17 @@ export function fmtVal(v: number | null | undefined, f: Fmt): string {
   if (f === "pct") return `${v.toFixed(2)}%`;
   if (f === "krw") return `${Math.round(v).toLocaleString("ko-KR")}원`;
   if (f === "days") return `${Math.round(v).toLocaleString("ko-KR")}일`;
+  if (f === "x") return `${v.toFixed(2)}배`;
+  if (f === "qty") return `${Math.round(v).toLocaleString("ko-KR")}주`;
+  if (f === "num") return Math.round(v).toLocaleString("ko-KR");
   return fmtWon(v);
 }
-export const UNIT: Record<Fmt, string> = { won: "금액", pct: "비율 (%)", krw: "주당 금액 (원)", days: "일수" };
+export const UNIT: Record<Fmt, string> = { won: "금액", pct: "비율 (%)", krw: "주당 금액 (원)", days: "일수", x: "배수", qty: "수량 (주)", num: "개수" };
 
 function axisLabel(v: number, f: Fmt): string {
   if (f === "pct") return `${+v.toFixed(Math.abs(v) < 10 ? 1 : 0)}%`;
   if (f === "days") return `${Math.round(v)}일`;
+  if (f === "x") return `${+v.toFixed(Math.abs(v) < 10 ? 2 : 1)}배`;
   const a = Math.abs(v);
   if (f === "won" && a >= 1e12) return `${+(v / 1e12).toFixed(2)}조`;
   if (f === "won" && a >= 1e8) return `${Math.round(v / 1e8).toLocaleString("ko-KR")}억`;
@@ -246,7 +250,7 @@ export function FinTable({ periods, series, focus, onFocus }: { periods: string[
               <th className={c.stick} scope="row">
                 <span className={s.kind === "bar" ? c.swatchBar : c.swatchLine} style={{ background: s.kind === "bar" ? s.color : undefined, borderColor: s.color }} />
                 {s.label}
-                {s.calc ? <small className={c.calcTag}>계산</small> : s.src ? <small className={c.srcTag}>{s.src}</small> : null}
+                {s.src ? <small className={c.srcTag}>{s.src}</small> : s.calc ? <small className={c.calcTag}>계산</small> : null}
               </th>
               {s.values.map((v, i) => (
                 <td key={i} title={s.marks?.[i] === "missing" ? "공시 API 값이 앞 분기를 되풀이해 표시하지 않음" : s.marks?.[i] === "derived" ? "계산으로 만든 값" : undefined}

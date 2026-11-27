@@ -47,7 +47,7 @@ def classify(row: DataRow, target_name: str, report_date: str) -> dict:
     if re.search(kind[2], item):
         return {"skip": "목표·적정·추정 같은 값이라 시세와 대조하지 않음"}
     # KRX 값은 원(주가·시가총액)이나 주(상장주식수)다. 단위가 다르면(%, 배, %p) 같은 이름이 들어 있어도 다른 숫자다
-    # (2026-11-21 실제 리포트 분석: '지분 역산 할인율(11월 10일 현재주가 기준) 48.2%'를 주가로 읽었다)
+    # (2026-11-21 실제 리포트 분석: '지분 역산 할인율(11월 10일 현재주가 기준) 30.0%'를 주가로 읽었다)
     unit = f"{row.unit or ''}{row.value or ''}".replace(" ", "")
     want = kind[4]                                   # 이 항목의 KRX 값 단위
     other = re.search(r"%|배|bp|퍼센트", unit) if want != "%" else not re.search(r"%|퍼센트", unit)
@@ -64,7 +64,7 @@ def classify(row: DataRow, target_name: str, report_date: str) -> dict:
     head = re.sub(r"보통주|우선주", " ", item.split(kw)[0]).strip()
     # '가상생명 기준주가 2026-11-10 종가' 처럼 회사 이름 뒤에 붙은 날짜·'기준주가' 같은 말은 회사 이름이 아니다
     head = re.sub(r"(기준|당일|작성일|최근)?\s*주가|기준|당일|작성일|최근", " ", _DATE.sub(" ", head)).strip()
-    # '삼성생명 상장 주식수'처럼 띄어 쓴 꾸밈말(상장·발행·보통·총·현재)도 회사 이름이 아니다 (2026-11-20 실제 리포트 분석)
+    # '가상생명 상장 주식수'처럼 띄어 쓴 꾸밈말(상장·발행·보통·총·현재)도 회사 이름이 아니다 (2026-11-20 실제 리포트 분석)
     head = re.sub(r"(\s|^)(상장|발행|보통|총|현재)$", " ", head).strip()
     company = None if not head or head.replace(" ", "") == target_name.replace(" ", "") else head
     if "우선주" in item:          # KRX 는 우선주를 '삼성전자우'처럼 따로 올린다. 보통주 시세와 대조하면 틀렸다고 나온다(2026-11-17 실제 리포트 분석)

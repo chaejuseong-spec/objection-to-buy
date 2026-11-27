@@ -1,6 +1,6 @@
 import { stockHistory, UserError } from "@/lib/server/library";
 
-/** 주가 차트 자료: 받아 둔 KRX 일별 시세 (시가·고가·저가·종가·거래량, 액면분할 보정) */
+/** 주가 차트 자료: 토스증권 수정주가 일봉 (못 받으면 받아 둔 KRX 일별 시세, 액면분할 보정) */
 export async function GET(_request: Request, ctx: RouteContext<"/api/stocks/[ticker]/history">) {
   const { ticker } = await ctx.params;
   try {

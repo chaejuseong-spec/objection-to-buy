@@ -63,3 +63,32 @@ def test_together_makes_one_dual_axis_chart():
     p["together"] = True
     ws = load_workbook(io.BytesIO(excel.build(p))).active
     assert len(ws._charts) == 1                                              # 금액(좌) + 비율(우) 한 차트  # noqa: SLF001
+
+
+def test_several_sheets_and_table_only():
+    """시장 화면 (2026-11-26): 같은 양식 시트 여러 장, no_chart 시트는 표만 (가상 값)"""
+    import io
+    from openpyxl import load_workbook
+    from tribunal.external import excel
+    one = {"title": "지수", "sheet": "지수", "periods": ["26-11-24", "26-11-25"], "rows": [{"label": "가상지수", "fmt": "x", "kind": "line", "values": [100.0, 101.5]}]}
+    two = {"title": "섹터", "sheet": "섹터 등락률", "no_chart": True, "periods": ["1일", "1주"],
+           "rows": [{"label": "가상섹터", "fmt": "pct", "kind": "line", "values": [1.5, -2.0]}]}
+    wb = load_workbook(io.BytesIO(excel.build({"title": "시장", "periods": [], "rows": [], "sheets": [one, two]})))
+    assert wb.sheetnames == ["지수", "섹터 등락률"]
+    assert wb["지수"]["D5"].value == "26-11-24" and len(wb["지수"]._charts) == 1
+    assert len(wb["섹터 등락률"]._charts) == 0 and wb["섹터 등락률"]["D6"].value == 0.015
+
+
+def test_daily_dates_and_sparse_axis_labels():
+    """일별 기간은 엑셀 날짜(표 '26.02.15', 축 '26.02' 날짜 축), 줄 하나면 차트 제목 (가상 값)"""
+    import io
+    from datetime import date, timedelta
+    from openpyxl import load_workbook
+    from tribunal.external import excel
+    days = [(date(2026, 1, 1) + timedelta(days=i)).isoformat() for i in range(60)]
+    p = {"title": "지수", "sheet": "지수", "periods": days, "rows": [{"label": "가상지수", "fmt": "x", "kind": "line", "values": [100.0 + i for i in range(60)]}]}
+    ws = load_workbook(io.BytesIO(excel.build(p)))["지수"]
+    assert ws["D5"].value.date() == date(2026, 1, 1) and ws["D5"].number_format == "yy.mm.dd"
+    ch = ws._charts[0]
+    assert ch.x_axis.numFmt.formatCode == "yy.mm" and ch.x_axis.majorTimeUnit == "months" and ch.x_axis.majorUnit == 1   # 진짜 날짜 축, 3달 → 1달마다
+    assert "가상지수" in str(ch.title.tx.rich.p[0].r[0].t)               # 줄 하나: 차트 제목으로 이름
